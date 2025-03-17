@@ -28,7 +28,7 @@
           document.getElementById("lastKey").textContent = commandStr;
           
           // Send the command to your FastAPI server
-          fetch(`https://c04c-181-81-79-157.ngrok-free.app/command?cmd=${encodeURIComponent(commandStr)}`, {
+          fetch(`http://192.168.1.29:8000/command?cmd=${encodeURIComponent(commandStr)}`, {
             method: "POST"
           }).catch(error => console.error("Error sending command:", error));
         } else {
