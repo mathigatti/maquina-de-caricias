@@ -1,0 +1,7 @@
+pyserial
+fastapi
+uvicorn
+opencv-python
+numpy
+Pillow
+requests
