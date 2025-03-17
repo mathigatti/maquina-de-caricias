@@ -5,6 +5,7 @@ import cv2.aruco as aruco
 import requests
 import random
 import time
+import math
 from time import sleep
 from PIL import Image
 
@@ -34,75 +35,81 @@ def coord_ready():
     return True
 
 # Tolerances (tweak to your needs)
-area_tolerance = 1500
-pos_tolerance = 50
+area_tolerance = 500
+pos_tolerance = 10
 
 high_height = 2500
 low_height = 1500
 
-def dynamic_step(error, min_step=1.0, max_step=20.0, factor=0.1):
-    """
-    Scale error by a factor and clamp the result.
-    """
-    step = error * factor
-    return max(min_step, min(step, max_step))
+# Default motor speed (the fourth variable)
+DEFAULT_MOTOR_SPEED = 2000
 
-def move(area, position, target_area, target_position):
+# Global variable to store last movement command
+last_move = None
+
+# --- Motor positions (in the same coordinate system as the marker detection) ---
+# Adjust these values as needed for your actual ceiling layout.
+MOTOR_TIP_POS = (1280, 360)      # e.g., top center
+MOTOR_LEFT_POS = (0, 720)     # e.g., bottom left
+MOTOR_RIGHT_POS = (0, 0) # e.g., bottom right
+
+def move(area, current_position, target_area, target_position, factor=0.1):
     """
-    Computes movement commands based on current area and position.
-    Updates the global last_move variable with the current command.
+    Smarter move function based on inverse kinematics.
+    
+    current_position: (x, y) from the marker detection (current horizontal position of the object)
+    target_position: (x, y, h) where h is the desired constant vertical (or height-related) parameter.
+    
+    This function computes the required change in cable length for each motor to move the object
+    from its current position to the target position while maintaining the same height.
     """
     global last_move
-    tip_move = 0.0
-    left_move = 0.0
-    right_move = 0.0
+    # Extract positions
+    x_current, y_current = current_position
+    x_target, y_target = target_position  # h is treated as the vertical offset (kept constant)
+    
+    # Helper: compute cable length given motor position and object position
+    def cable_length(motor_pos, x, y, h):
+        # h is assumed to be constant (the vertical distance from the object to the ceiling)
+        dx = x - motor_pos[0]
+        dy = y - motor_pos[1]
+        da = 60000 * 1/math.sqrt(h)
+        print(dx*dx, dy*dy, da*da)
+        return math.sqrt(dx*dx + dy*dy + da*da)
+    
+    # Compute current and target cable lengths for each motor
+    L_tip_current = cable_length(MOTOR_TIP_POS, x_current, y_current, area)
+    L_tip_target  = cable_length(MOTOR_TIP_POS, x_target, y_target, target_area)
+    delta_tip = L_tip_target - L_tip_current
 
-    area_diff = abs(area - target_area)
-    diff_y = abs(position[1] - target_position[1])
-    diff_x = abs(position[0] - target_position[0])
+    L_left_current = cable_length(MOTOR_LEFT_POS, x_current, y_current, area)
+    L_left_target  = cable_length(MOTOR_LEFT_POS, x_target, y_target, target_area)
+    delta_left = L_left_target - L_left_current
 
-    # 1) Adjust based on area difference (object distance)
-    if abs(area - target_area) > area_tolerance:
-        step = dynamic_step(area_diff, min_step=1.0, max_step=20.0, factor=0.3)
-        if area < target_area:
-            tip_move = -step
-            left_move = -step
-            right_move = -step
-        else:
-            tip_move = +step
-            left_move = +step
-            right_move = +step
-    # 2) Adjust based on horizontal deviation
-    elif abs(position[1] - target_position[1]) > pos_tolerance:
-        step = dynamic_step(diff_y, min_step=1.0, max_step=15.0, factor=0.1)
-        if position[1] < target_position[1]:
-            left_move = -step
-            right_move = +step
-        else:
-            left_move = +step
-            right_move = -step
-    # 3) Adjust based on vertical deviation
-    elif abs(position[0] - target_position[0]) > pos_tolerance:
-        step = dynamic_step(diff_x, min_step=1.0, max_step=15.0, factor=0.2)
-        if position[0] < target_position[0]:
-            tip_move = -step
-        else:
-            tip_move = +step
+    L_right_current = cable_length(MOTOR_RIGHT_POS, x_current, y_current, area)
+    L_right_target  = cable_length(MOTOR_RIGHT_POS, x_target, y_target, target_area)
+    
+    delta_right = L_right_target - L_right_current
 
-    move_coord = (tip_move, left_move, right_move, DEFAULT_MOTOR_SPEED)
-    last_move = move_coord  # Save current move command
+    print(delta_tip, delta_left, delta_right)
+    tip_move   = delta_tip
+    left_move  = delta_left
+    right_move = delta_right
+
+    # Save and send the computed movement command
+    move_coord = (tip_move*factor, left_move*factor, right_move*factor, DEFAULT_MOTOR_SPEED)
+    last_move = move_coord
+    print("Computed move command:", move_coord)
     send_coord(move_coord)
 
 def undo_last_move():
     """
     Sends the inverse of the last movement command.
     """
-    global last_move
     if last_move is not None:
         undo_command = (-last_move[0], -last_move[1], -last_move[2], DEFAULT_MOTOR_SPEED)
         print("Undoing last move")
         send_coord(undo_command)
-        last_move = None
 
 def find_aruco_markers(frame, aruco_dict_type=aruco.DICT_4X4_50, debug=True):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -192,17 +199,27 @@ if __name__ == "__main__":
 
     input("Waiting for you to load mask.jpg")
     frame_depth = Image.open("mask.jpg").convert("L")
-    
-    # Build target positions ensuring they are valid according to valid_coords
-    positions = []
-    for pos in choose_random_non_black_points(frame_depth, n=100):
-        if valid_coords(pos):
-            positions.append(pos + (high_height,))
-            positions.append(pos + (low_height,))
-    # Optionally add a default target position if valid
-    default_pos = (600, 320)
-    if valid_coords(default_pos):
-        positions.append(default_pos + (2500,))
+    mask_np = np.array(frame_depth)
+
+    # Find coordinates of black pixels (pixel value == 0)
+    black_coords = np.argwhere(mask_np == 0)
+
+    # np.argwhere returns (row, col) = (y, x)
+    average_y, average_x = np.mean(black_coords, axis=0)
+    middle_x = int(average_x)
+    middle_y = int(average_y)
+
+    # Define a square with a chosen side length (e.g., 200 pixels)
+    square_side = 200
+    half_side = square_side // 2
+
+    # Create target positions as the 4 vertices of the square, with a fixed third param of 2500
+    positions = [
+        (middle_x - half_side, middle_y - half_side, 2500),  # Top-left
+        (middle_x + half_side, middle_y - half_side, 2500),  # Top-right
+        (middle_x + half_side, middle_y + half_side, 2500),  # Bottom-right
+        (middle_x - half_side, middle_y + half_side, 2500)  # Bottom-left
+    ]
     print("Valid target positions:", positions)
     
     if not positions:
@@ -258,4 +275,5 @@ if __name__ == "__main__":
                 cap.grab()
 
     cap.release()
+
 
