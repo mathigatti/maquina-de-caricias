@@ -1,19 +1,46 @@
-import sys
-import numpy as np
+import math
+import random
+from time import sleep
+
 import cv2
 import cv2.aruco as aruco
 import requests
-import random
-import time
-import math
-from time import sleep
+import numpy as np
 from PIL import Image
 
 # URL of your FastAPI server (adjust as needed)
 API_URL = "http://localhost:8000/command"
 
+# Tolerances (tweak to your needs)
+area_tolerance = 500
+pos_tolerance = 10
+
+high_height = 2500
+low_height = 1500
+
 # Default motor speed (the fourth variable)
 DEFAULT_MOTOR_SPEED = 2000
+
+'''
+X_TOTAL_CM = 180
+Y_TOTAL_CM = 280
+Z_TOTAL_CM = 230
+'''
+
+WIDTH_TOTAL = 1280
+HEIGHT_TOTAL = 720
+
+HEIGHT_MAX = HEIGHT_TOTAL/2 + 300
+WIDTH_MAX = WIDTH_TOTAL - 300
+
+HEIGHT_MIN = HEIGHT_TOTAL/2 - 300
+WIDTH_MIN = 300
+
+# --- Motor positions (in the same coordinate system as the marker detection) ---
+# Adjust these values as needed for your actual ceiling layout.
+MOTOR_TIP_POS = (WIDTH_TOTAL, HEIGHT_TOTAL/2)      # e.g., top center
+MOTOR_LEFT_POS = (0, HEIGHT_TOTAL)     # e.g., bottom left
+MOTOR_RIGHT_POS = (0, 0) # e.g., bottom right
 
 # Global variable to store last movement command
 last_move = None
@@ -30,28 +57,6 @@ def send_coord(coord):
             print(f"Error: received status {response.status_code}")
     except Exception as e:
         print(f"Error sending coordinate: {e}")
-
-def coord_ready():
-    return True
-
-# Tolerances (tweak to your needs)
-area_tolerance = 500
-pos_tolerance = 10
-
-high_height = 2500
-low_height = 1500
-
-# Default motor speed (the fourth variable)
-DEFAULT_MOTOR_SPEED = 2000
-
-# Global variable to store last movement command
-last_move = None
-
-# --- Motor positions (in the same coordinate system as the marker detection) ---
-# Adjust these values as needed for your actual ceiling layout.
-MOTOR_TIP_POS = (1280, 360)      # e.g., top center
-MOTOR_LEFT_POS = (0, 720)     # e.g., bottom left
-MOTOR_RIGHT_POS = (0, 0) # e.g., bottom right
 
 def move(area, current_position, target_area, target_position, factor=0.1):
     """
@@ -111,56 +116,6 @@ def undo_last_move():
         print("Undoing last move")
         send_coord(undo_command)
 
-def find_aruco_markers(frame, aruco_dict_type=aruco.DICT_4X4_50, debug=True):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    aruco_dict = aruco.getPredefinedDictionary(aruco_dict_type)
-    parameters = aruco.DetectorParameters()
-    detector = aruco.ArucoDetector(aruco_dict, parameters)
-    corners, ids, _ = detector.detectMarkers(gray)
-
-    if ids is not None:
-        for i, _ in enumerate(ids):
-            x_min = int(min(corners[i][0][:, 0]))
-            y_min = int(min(corners[i][0][:, 1]))
-            width = int(max(corners[i][0][:, 0]) - x_min)
-            height = int(max(corners[i][0][:, 1]) - y_min)
-            area = width * height            
-            if debug:
-                for j in range(len(ids)):
-                    cv2.polylines(frame, [np.int32(corners[j])], True, (0, 255, 0), 2)
-                cv2.imwrite("arucos_frame.jpg", frame)
-            return {"position": (x_min, y_min), "width": width, "height": height, "area": area}
-    else:
-        #print("No ArUco markers detected.")
-        return None
-
-def choose_random_non_black_points(mask, n=5, x_min=None, x_max=None):
-    """
-    Given a grayscale PIL image 'mask', randomly choose n distinct points where the pixel is black.
-    Returns a list of (x, y) tuples.
-    """
-    mask = mask.convert("L")
-    mask_np = np.array(mask)
-    black_coords = np.argwhere(mask_np == 0)
-    if len(black_coords) < n:
-        raise ValueError(f"Not enough black pixels. Needed {n}, found {len(black_coords)}.")
-    chosen_indices = random.sample(range(len(black_coords)), k=n)
-    chosen_points = []
-    for idx in chosen_indices:
-        row, col = black_coords[idx]
-        chosen_points.append((int(col), int(row)))
-    return chosen_points
-
-# --- Region parameters and valid_coords function ---
-WIDTH_TOTAL = 1280
-HEIGHT_TOTAL = 720
-
-HEIGHT_MAX = HEIGHT_TOTAL/2 + 300
-WIDTH_MAX = WIDTH_TOTAL - 300
-
-HEIGHT_MIN = HEIGHT_TOTAL/2 - 300
-WIDTH_MIN = 300
-
 def valid_coords(aruco_center):
     """
     Returns True if the given aruco_center (x, y) lies inside the triangle defined by:
@@ -178,7 +133,55 @@ def valid_coords(aruco_center):
     area2 = triangle_area(x1, y1, x, y, x3, y3)
     area3 = triangle_area(x1, y1, x2, y2, x, y)
     return abs(total_area - (area1 + area2 + area3)) < 0.01 * total_area
-# --- End valid_coords ---
+
+def find_aruco_markers(frame, aruco_dict_type=aruco.DICT_4X4_50, debug=True):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    aruco_dict = aruco.getPredefinedDictionary(aruco_dict_type)
+    parameters = aruco.DetectorParameters()
+    detector = aruco.ArucoDetector(aruco_dict, parameters)
+    corners, ids, _ = detector.detectMarkers(gray)
+
+    if ids is not None:
+        for i, _ in enumerate(ids):
+            x_min = int(min(corners[i][0][:, 0]))
+            y_min = int(min(corners[i][0][:, 1]))
+            width = int(max(corners[i][0][:, 0]) - x_min)
+            height = int(max(corners[i][0][:, 1]) - y_min)
+            area = width * height            
+            if debug:
+                for j in range(len(ids)):
+                    cv2.polylines(frame, [np.int32(corners[j])], True, (0, 255, 0), 2)
+
+                # Draw the valid-region triangle
+                v1 = (int(WIDTH_MIN), int(HEIGHT_MAX))
+                v2 = (int(WIDTH_MIN), int(HEIGHT_MIN))
+                v3 = (int(WIDTH_MAX), int(HEIGHT_TOTAL/2))
+                cv2.line(frame, v1, v2, (0, 0, 255), 2)
+                cv2.line(frame, v2, v3, (0, 0, 255), 2)
+                cv2.line(frame, v3, v1, (0, 0, 255), 2)
+
+                cv2.imwrite("arucos_frame.jpg", frame)
+            return {"position": (x_min, y_min), "width": width, "height": height, "area": area}
+    else:
+        #print("No ArUco markers detected.")
+        return None
+
+def choose_random_non_black_points(mask, n=5):
+    """
+    Given a grayscale PIL image 'mask', randomly choose n distinct points where the pixel is black.
+    Returns a list of (x, y) tuples.
+    """
+    mask = mask.convert("L")
+    mask_np = np.array(mask)
+    black_coords = np.argwhere(mask_np == 0)
+    if len(black_coords) < n:
+        raise ValueError(f"Not enough black pixels. Needed {n}, found {len(black_coords)}.")
+    chosen_indices = random.sample(range(len(black_coords)), k=n)
+    chosen_points = []
+    for idx in chosen_indices:
+        row, col = black_coords[idx]
+        chosen_points.append((int(col), int(row)))
+    return chosen_points
 
 if __name__ == "__main__":
     selected_dict = cv2.aruco.DICT_4X4_50
