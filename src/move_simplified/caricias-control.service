@@ -1,0 +1,14 @@
+[Unit]
+Description=Caricias Move Service (FastAPI)
+After=network.target
+
+[Service]
+User=mathigatti
+WorkingDirectory=/home/mathigatti/maquina-de-caricias/src/move_simplified
+Environment="PATH=/home/mathigatti/caricias/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/home/mathigatti/caricias/bin/uvicorn move:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

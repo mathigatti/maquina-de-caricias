@@ -3,39 +3,104 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Key Logger with Coord Mapping & Speed</title>
+  <title>Maquina de Caricias</title>
   <script>
     document.addEventListener("DOMContentLoaded", function() {
-      // Mapping from key to coordinate numbers (tip, left, right)
-      const mapping = {
-        "u": { tip: 0,  left: -10,  right: 0  },  // Motor Y up
-        "j": { tip: 0,  left: 10, right: 0  },  // Motor Y down
-        "i": { tip: 0,  left: 0,   right: -10 },  // Motor Z up
-        "k": { tip: 0,  left: 0,   right: 10},  // Motor Z down
-        "y": { tip: -10, left: 0,   right: 0  },  // Motor X up
-        "h": { tip: 10,  left: 0,   right: 0  }   // Motor X down
-      };
+      // Function to send a motor command
+      function sendCommand(tip, left, right) {
+        const speed = document.getElementById("speed").value || "0";
+        const commandStr = `(${tip},${left},${right},${speed})`;
+        document.getElementById("lastKey").textContent = commandStr;
+        fetch(`/command?cmd=${encodeURIComponent(commandStr)}`, {
+          method: "POST"
+        }).catch(error => console.error("Error sending command:", error));
+      }
 
-      document.addEventListener("keydown", function(event) {
-        let key = event.key.toLowerCase();
-        let commandStr = "";
-        if (mapping.hasOwnProperty(key)) {
-          // Get the current speed from the input field.
-          const speed = document.getElementById("speed").value || "0";
-          const coords = mapping[key];
-          // Build the coordinate command: (tip,left,right,speed)
-          commandStr = `(${coords.tip},${coords.left},${coords.right},${speed})`;
-          document.getElementById("lastKey").textContent = commandStr;
-          
-          // Send the command to your FastAPI server
-          fetch(`http://192.168.1.29:8000/command?cmd=${encodeURIComponent(commandStr)}`, {
-            method: "POST"
-          }).catch(error => console.error("Error sending command:", error));
-        } else {
-          // For unmapped keys, simply display the uppercase key.
-          document.getElementById("lastKey").textContent = key.toUpperCase();
-        }
+      // Set up button event listeners for Motor X
+      document.getElementById("motorXUp").addEventListener("click", function() {
+        sendCommand(-10, 0, 0);
       });
+      document.getElementById("motorXDown").addEventListener("click", function() {
+        sendCommand(10, 0, 0);
+      });
+
+      // Set up button event listeners for Motor Y
+      document.getElementById("motorYUp").addEventListener("click", function() {
+        sendCommand(0, -10, 0);
+      });
+      document.getElementById("motorYDown").addEventListener("click", function() {
+        sendCommand(0, 10, 0);
+      });
+
+      // Set up button event listeners for Motor Z
+      document.getElementById("motorZUp").addEventListener("click", function() {
+        sendCommand(0, 0, -10);
+      });
+      document.getElementById("motorZDown").addEventListener("click", function() {
+        sendCommand(0, 0, 10);
+      });
+      
+      // Load current config from /config and populate fields
+      fetch("/config")
+        .then(response => {
+          if (!response.ok) {
+            throw new Error("Failed to load configuration");
+          }
+          return response.json();
+        })
+        .then(config => {
+          document.getElementById("HIGH_HEIGHT").value = config.HIGH_HEIGHT;
+          document.getElementById("LOW_HEIGHT").value = config.LOW_HEIGHT;
+          document.getElementById("DEFAULT_MOTOR_SPEED").value = config.DEFAULT_MOTOR_SPEED;
+          document.getElementById("AREA_TOLERANCE").value = config.AREA_TOLERANCE;
+          document.getElementById("POS_TOLERANCE").value = config.POS_TOLERANCE;
+          document.getElementById("MAX_MOVEMENT_RETRIES").value = config.MAX_MOVEMENT_RETRIES;
+          document.getElementById("AREA2DISTANCE_CONSTANT").value = config.AREA2DISTANCE_CONSTANT;
+        })
+        .catch(error => console.error("Error loading config:", error));
+      
+      // Add event listener for the update configuration button
+      document.getElementById("updateConfigBtn").addEventListener("click", function() {
+        const updatedConfig = {
+          HIGH_HEIGHT: parseInt(document.getElementById("HIGH_HEIGHT").value),
+          LOW_HEIGHT: parseInt(document.getElementById("LOW_HEIGHT").value),
+          DEFAULT_MOTOR_SPEED: parseInt(document.getElementById("DEFAULT_MOTOR_SPEED").value),
+          AREA_TOLERANCE: parseInt(document.getElementById("AREA_TOLERANCE").value),
+          POS_TOLERANCE: parseInt(document.getElementById("POS_TOLERANCE").value),
+          MAX_MOVEMENT_RETRIES: parseInt(document.getElementById("MAX_MOVEMENT_RETRIES").value),
+          AREA2DISTANCE_CONSTANT: parseInt(document.getElementById("AREA2DISTANCE_CONSTANT").value)
+        };
+        
+        fetch("/config", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(updatedConfig)
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error("Failed to update configuration");
+          }
+          return response.json();
+        })
+        .then(data => {
+          alert("Configuration updated successfully");
+        })
+        .catch(error => {
+          console.error("Error updating config:", error);
+          alert("Error updating configuration");
+        });
+      });
+      
+      // Refresh only the overlay image every 2 seconds without reloading the whole page.
+      setInterval(() => {
+        const overlayImage = document.getElementById("overlayImage");
+        if (overlayImage) {
+          // Append a timestamp to bypass browser caching.
+          overlayImage.src = `/overlay.jpg?t=${new Date().getTime()}`;
+        }
+      }, 2000);
     });
   </script>
 </head>
@@ -46,5 +111,58 @@
     <label for="speed">Motor Speed:</label>
     <input type="number" id="speed" value="128000">
   </div>
+  
+  <h2>Motor Control</h2>
+  <div>
+    <h3>Motor X</h3>
+    <button id="motorXUp">Up</button>
+    <button id="motorXDown">Down</button>
+  </div>
+  <div>
+    <h3>Motor Y</h3>
+    <button id="motorYUp">Up</button>
+    <button id="motorYDown">Down</button>
+  </div>
+  <div>
+    <h3>Motor Z</h3>
+    <button id="motorZUp">Up</button>
+    <button id="motorZDown">Down</button>
+  </div>
+  
+  <h2>Detected Marker with Valid Region Overlay</h2>
+  <!-- Added id to the image for JavaScript reference -->
+  <img id="overlayImage" src="/overlay.jpg" alt="Overlayed Marker Image">
+
+  <!-- Configuration Update Form -->
+  <h2>Update Configuration</h2>
+  <div>
+    <label for="HIGH_HEIGHT">HIGH_HEIGHT:</label>
+    <input type="number" id="HIGH_HEIGHT">
+  </div>
+  <div>
+    <label for="LOW_HEIGHT">LOW_HEIGHT:</label>
+    <input type="number" id="LOW_HEIGHT">
+  </div>
+  <div>
+    <label for="DEFAULT_MOTOR_SPEED">DEFAULT_MOTOR_SPEED:</label>
+    <input type="number" id="DEFAULT_MOTOR_SPEED">
+  </div>
+  <div>
+    <label for="AREA_TOLERANCE">AREA_TOLERANCE:</label>
+    <input type="number" id="AREA_TOLERANCE">
+  </div>
+  <div>
+    <label for="POS_TOLERANCE">POS_TOLERANCE:</label>
+    <input type="number" id="POS_TOLERANCE">
+  </div>
+  <div>
+    <label for="MAX_MOVEMENT_RETRIES">MAX_MOVEMENT_RETRIES:</label>
+    <input type="number" id="MAX_MOVEMENT_RETRIES">
+  </div>
+  <div>
+    <label for="AREA2DISTANCE_CONSTANT">AREA2DISTANCE_CONSTANT:</label>
+    <input type="number" id="AREA2DISTANCE_CONSTANT">
+  </div>
+  <button id="updateConfigBtn">Update Configuration</button>
 </body>
 </html>

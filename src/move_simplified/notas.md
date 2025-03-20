@@ -19,3 +19,13 @@ arduino-cli board list
 arduino-cli compile --fqbn arduino:avr:mega Stepper
 
 arduino-cli upload -p /dev/ttyUSB0 --fqbn arduino:avr:mega Stepper
+
+## Comandos útiles
+
+- scp mask.jpg mathigatti@192.168.1.29:~
+
+- run 
+    python control.py
+    uvicorn move:app --host 0.0.0.0 --port 8000
+
+    ngrok http http://localhost:8000 (opcional)

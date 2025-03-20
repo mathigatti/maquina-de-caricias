@@ -1,8 +1,9 @@
 import threading
-
 import cv2
 import serial
-from fastapi import FastAPI, BackgroundTasks, Response
+import json
+import os
+from fastapi import FastAPI, BackgroundTasks, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
@@ -93,21 +94,12 @@ async def send_command(cmd: str, background_tasks: BackgroundTasks):
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    html_content = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <title>Detected Marker Overlay</title>
-      <meta http-equiv="refresh" content="2">
-    </head>
-    <body>
-      <h1>Detected Marker with Valid Region Overlay</h1>
-      <img src="/overlay.jpg" alt="Overlayed Marker Image">
-    </body>
-    </html>
-    """
-    return html_content
+    index_path = os.path.join(os.path.dirname(__file__), "index.html")
+    if os.path.exists(index_path):
+        with open(index_path, "r", encoding="utf-8") as f:
+            return f.read()
+    else:
+        return HTMLResponse(content="<h1>index.html not found</h1>", status_code=404)
 
 @app.get("/overlay.jpg")
 def get_overlay_image():
@@ -123,7 +115,53 @@ def get_overlay_image():
     
     return Response(content=jpeg.tobytes(), media_type="image/jpeg")
 
+@app.get("/config")
+def get_config():
+    """
+    Retrieve the current configuration from config.json.
+    """
+    config_path = os.path.join(os.path.dirname(__file__), "config.json")
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        return config
+    else:
+        raise HTTPException(status_code=404, detail="config.json not found")
+
+@app.put("/config")
+async def update_config(new_config: dict):
+    """
+    Update config.json with provided fields.
+    Only provided fields will be updated; other fields remain unchanged.
+    Expected JSON example:
+    {
+      "HIGH_HEIGHT": 2500,
+      "LOW_HEIGHT": 1500,
+      "DEFAULT_MOTOR_SPEED": 2000,
+      "AREA_TOLERANCE": 500,
+      "POS_TOLERANCE": 10,
+      "MAX_MOVEMENT_RETRIES": 10,
+      "AREA2DISTANCE_CONSTANT": 60000
+    }
+    """
+    config_path = os.path.join(os.path.dirname(__file__), "config.json")
+    # Load existing config if it exists; otherwise, start with an empty dictionary.
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            current_config = json.load(f)
+    else:
+        current_config = {}
+    
+    # Update the config with new values (only provided keys will be updated)
+    current_config.update(new_config)
+    
+    try:
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(current_config, f, indent=2)
+        return {"status": "Config updated successfully", "config": current_config}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
