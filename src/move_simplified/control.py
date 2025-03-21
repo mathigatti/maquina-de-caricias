@@ -13,9 +13,6 @@ from PIL import Image
 # URL of your FastAPI server (adjust as needed)
 API_URL = "http://localhost:8000/command"
 
-# A constant that is not part of the config.
-MOVEMENT_FACTOR = 0.125
-
 # Other constants
 WIDTH_TOTAL = 1280
 HEIGHT_TOTAL = 720
@@ -86,8 +83,10 @@ def move(area, current_position, target_area, target_position):
     global last_move
     # Read the latest configuration parameters.
     config = read_config()
-    DEFAULT_MOTOR_SPEED = config.get("DEFAULT_MOTOR_SPEED", 2000)
-    AREA2DISTANCE_CONSTANT = config.get("AREA2DISTANCE_CONSTANT", 60000)
+    DEFAULT_MOTOR_SPEED = config.get("DEFAULT_MOTOR_SPEED")
+    AREA2DISTANCE_CONSTANT = config.get("AREA2DISTANCE_CONSTANT")
+    movement_factor = config.get("MOVEMENT_FACTOR")
+    max_value = config.get("MAX_VALUE")
     
     x_current, y_current = current_position
     x_target, y_target = target_position
@@ -116,10 +115,16 @@ def move(area, current_position, target_area, target_position):
     tip_move   = delta_tip
     left_move  = delta_left
     right_move = delta_right
+    
+    move_coord = (
+        max(-max_value, min(tip_move * movement_factor, max_value)),
+        max(-max_value, min(left_move * movement_factor, max_value)),
+        max(-max_value, min(right_move * movement_factor, max_value)),
+        DEFAULT_MOTOR_SPEED
+    )
 
-    move_coord = (tip_move * MOVEMENT_FACTOR, left_move * MOVEMENT_FACTOR, right_move * MOVEMENT_FACTOR, DEFAULT_MOTOR_SPEED)
-    last_move = move_coord
     print("Computed move command:", move_coord)
+    last_move = move_coord
     send_coord(move_coord)
 
 def undo_last_move():
@@ -127,7 +132,7 @@ def undo_last_move():
     Sends the inverse of the last movement command.
     """
     config = read_config()
-    DEFAULT_MOTOR_SPEED = config.get("DEFAULT_MOTOR_SPEED", 2000)
+    DEFAULT_MOTOR_SPEED = config.get("DEFAULT_MOTOR_SPEED")
     global last_move
     if last_move is not None:
         undo_command = (-last_move[0], -last_move[1], -last_move[2], DEFAULT_MOTOR_SPEED)
@@ -216,30 +221,12 @@ def check_hibernation_mode(cap, selected_dict, debug=True):
         return True
     return False
 
-if __name__ == "__main__":
-    # Read config once to set up initial parameters.
+def load_positions():
     config = read_config()
     # Use the config parameter "high_height" for target positions.
-    high_height = config.get("HIGH_HEIGHT", 2500)
-    low_height  = config.get("LOW_HEIGHT", 1500)  # Not used further in this example.
+    high_height = config.get("HIGH_HEIGHT")
+    low_height  = config.get("LOW_HEIGHT")  # Not used further in this example.
 
-    selected_dict = cv2.aruco.DICT_4X4_50
-
-    camera_id = 0
-    cap = cv2.VideoCapture(camera_id)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-
-    if not cap.isOpened():
-        print("Error: Could not open USB webcam. Check the index.")
-        exit()
-
-    debug = True
-    ret, frame = cap.read()
-    if debug and ret:
-        cv2.imwrite("captured_frame.jpg", frame)
-
-    #input("Waiting for you to load mask.jpg")
     frame_depth = Image.open("mask.jpg").convert("L")
     mask_np = np.array(frame_depth)
 
@@ -260,18 +247,114 @@ if __name__ == "__main__":
         (middle_x + half_side, middle_y + half_side, high_height),  # Bottom-right
         (middle_x - half_side, middle_y + half_side, high_height)   # Bottom-left
     ]
-    print("Valid target positions:", positions)
+    print("positions:", positions)
     
     if not positions:
         print("No valid target positions found.")
         exit()
 
+    return positions
+
+def load_positions():
+
+    config = read_config()
+    high_height = config.get("HIGH_HEIGHT")
+    low_height  = config.get("LOW_HEIGHT")
+    step_size   = config.get("STEP_SIZE", 10)
+    recorrido   = config.get("RECORRIDO", "azar")
+    paso        = config.get("PASO", "continuo")
+
+    # Load mask image and convert to grayscale
+    mask_img = Image.open("mask.jpg").convert("L")
+    mask_np = np.array(mask_img)
+
+    # Create a binary image where black pixels (value 0) become 1 and white become 0.
+    # (Note: connectedComponentsWithStats considers zero as background, so we invert the image.)
+    binary = (mask_np == 0).astype(np.uint8)
+
+    # Find connected components (islands) with full 8-connectivity.
+    # Label 0 is the background.
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary, connectivity=8)
+
+    # For each island (labels 1..num_labels-1), randomly select STEP_SIZE points.
+    islands_points = []
+    for label in range(1, num_labels):
+        # Get coordinates (y, x) where the label matches.
+        island_coords = np.argwhere(labels == label)
+        if island_coords.size == 0:
+            continue
+        n_points = island_coords.shape[0]
+        if n_points >= step_size:
+            sampled_indices = np.random.choice(n_points, size=step_size, replace=False)
+            sampled_points = island_coords[sampled_indices]
+        else:
+            sampled_points = island_coords
+        # Convert (y, x) to (x, y) and add the low_height as the z coordinate.
+        points = [(int(pt[1]), int(pt[0]), low_height) for pt in sampled_points]
+        islands_points.append(points)
+
+    merged_points = []
+    if recorrido == "azar":
+        # Merge all islands' points and shuffle them randomly.
+        for points in islands_points:
+            merged_points.extend(points)
+        random.shuffle(merged_points)
+    elif recorrido == "secuencial":
+        # For each island, compute the average x and y.
+        island_averages = []
+        for points in islands_points:
+            if points:
+                avg_x = np.mean([pt[0] for pt in points])
+                avg_y = np.mean([pt[1] for pt in points])
+                island_averages.append((avg_x, avg_y))
+            else:
+                island_averages.append((float('inf'), float('inf')))
+        # Sort the islands by their average positions (x primary, y secondary).
+        sorted_islands = [
+            points for _, points in sorted(
+                zip(island_averages, islands_points), 
+                key=lambda pair: (pair[0][0], pair[0][1])
+            )
+        ]
+        # Concatenate the points from islands in the sorted order.
+        for points in sorted_islands:
+            merged_points.extend(points)
+    else:
+        raise ValueError("Invalid value for RECORRIDO. Expected 'azar' or 'secuencial'.")
+
+    # If PASO is "subiendo_bajando", insert an intermediate point after each position.
+    # The intermediate point has the same (x, y) but with z = HIGH_HEIGHT.
+    if paso == "subiendo_bajando":
+        new_points = []
+        for pos in merged_points:
+            new_points.append(pos)
+            new_points.append((pos[0], pos[1], high_height))
+        merged_points = new_points
+
+    return merged_points
+
+
+if __name__ == "__main__":
+
+    selected_dict = cv2.aruco.DICT_4X4_50
+
+    camera_id = 0
+    cap = cv2.VideoCapture(camera_id)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+    if not cap.isOpened():
+        print("Error: Could not open USB webcam. Check the index.")
+        exit()
+
+    debug = True
+    ret, frame = cap.read()
+    
     i = 0
 
     while True:
         # Always update the config before a major step.
         config = read_config()
-        HIBERNATION_HEIGHT = 4500
         # First, check if we should be in hibernation mode.
         if check_hibernation_mode(cap, selected_dict, debug=debug):
             print("Hibernation mode triggered. Moving to hibernation target.")
@@ -286,33 +369,42 @@ if __name__ == "__main__":
                 if data is not None:
                     current_area = data["area"]
                     current_position = data["position"]
-                    if (abs(current_area - HIBERNATION_HEIGHT) > config.get("AREA_TOLERANCE", 500) or 
-                        abs(current_position[0] - 400) > config.get("POS_TOLERANCE", 10) or 
-                        abs(current_position[1] - 360) > config.get("POS_TOLERANCE", 10)):
-                        move(current_area, current_position, HIBERNATION_HEIGHT, (400, 360))
+                    if (abs(current_area - config.get("HIBERNATION_HEIGHT")) > config.get("AREA_TOLERANCE") or 
+                        abs(current_position[0] - 400) > config.get("POS_TOLERANCE") or 
+                        abs(current_position[1] - 360) > config.get("POS_TOLERANCE")):
+                        move(current_area, current_position, config.get("HIBERNATION_HEIGHT"), (400, 360))
                 else:
                     print("Hibernation mode: multiple markers detected, waiting.")
                 sleep(2)
             print("Exiting hibernation mode. Resuming normal operation.")
-        
+
+        positions = load_positions()
+        print("POSITIONS", positions)
+                
         # Normal main loop operation.
+        invalid_camera_count = 0
         invalid_movement_retry_count = 0  # Counter for invalid readings
         valid_movement_retry_count = 0    # Counter for movement retries
         target_position = positions[i % len(positions)]
         
         while True:
-            config = read_config()  # refresh parameters before each iteration
-            ret, frame = cap.read()
-            if not ret:
+            if invalid_camera_count > 5:
                 print("Error: Failed to capture frame from webcam.")
                 break
 
+            config = read_config()  # refresh parameters before each iteration
+            ret, frame = cap.read()
+            if not ret:
+                invalid_camera_count+=1
+                continue
+            
             data = find_aruco_markers(frame, aruco_dict_type=selected_dict, debug=debug)
             
             # If multiple markers are detected, exit to re-check hibernation.
             if data is not None and "multiple" in data and data["multiple"]:
                 print("Multiple markers detected in main loop. Returning to hibernation check.")
                 break
+
 
             if data is None or not valid_coords(data["position"]):
                 invalid_movement_retry_count += 1
@@ -335,10 +427,10 @@ if __name__ == "__main__":
             print("\n")
 
             # Check if the current reading is within tolerance.
-            if (abs(area - target_position[-1]) < config.get("AREA_TOLERANCE", 500) and
-                abs(target_position[0] - position[0]) < config.get("POS_TOLERANCE", 10) and 
-                abs(target_position[1] - position[1]) < config.get("POS_TOLERANCE", 10)) or \
-               valid_movement_retry_count > config.get("MAX_MOVEMENT_RETRIES", 10):
+            if (abs(area - target_position[-1]) < config.get("AREA_TOLERANCE") and
+                abs(target_position[0] - position[0]) < config.get("POS_TOLERANCE") and 
+                abs(target_position[1] - position[1]) < config.get("POS_TOLERANCE")) or \
+               valid_movement_retry_count > config.get("MAX_MOVEMENT_RETRIES"):
                 print("Target reached!")
                 i += 1
                 target_position = positions[i % len(positions)]
@@ -350,5 +442,4 @@ if __name__ == "__main__":
                 for _ in range(5):
                     cap.grab()
             sleep(0.02)
-
     cap.release()

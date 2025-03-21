@@ -1,9 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Maquina de Caricias</title>
+  <style>
+    /* Container to overlay the canvas on top of the image */
+    #imageContainer {
+      position: relative;
+      display: inline-block;
+    }
+    /* Canvas is placed over the image */
+    #maskCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  </style>
   <script>
     document.addEventListener("DOMContentLoaded", function() {
       // Function to send a motor command
@@ -39,7 +52,7 @@
       document.getElementById("motorZDown").addEventListener("click", function() {
         sendCommand(0, 0, 10);
       });
-      
+
       // Load current config from /config and populate fields
       fetch("/config")
         .then(response => {
@@ -56,21 +69,41 @@
           document.getElementById("POS_TOLERANCE").value = config.POS_TOLERANCE;
           document.getElementById("MAX_MOVEMENT_RETRIES").value = config.MAX_MOVEMENT_RETRIES;
           document.getElementById("AREA2DISTANCE_CONSTANT").value = config.AREA2DISTANCE_CONSTANT;
+          // Populate new cycle parameters if they exist in the config:
+          if (config.STEP_SIZE !== undefined)
+            document.getElementById("stepSize").value = config.STEP_SIZE;
+          if (config.RECORRIDO !== undefined)
+            document.querySelector(`input[name="recorrido"][value="${config.RECORRIDO}"]`).checked = true;
+          if (config.PASO !== undefined)
+            document.querySelector(`input[name="paso"][value="${config.PASO}"]`).checked = true;
+          // Populate the newly added parameters:
+          if (config.HIBERNATION_HEIGHT !== undefined)
+            document.getElementById("HIBERNATION_HEIGHT").value = config.HIBERNATION_HEIGHT;
+          if (config.MOVEMENT_FACTOR !== undefined)
+            document.getElementById("MOVEMENT_FACTOR").value = config.MOVEMENT_FACTOR;
+          if (config.MAX_VALUE !== undefined)
+            document.getElementById("MAX_VALUE").value = config.MAX_VALUE;
         })
         .catch(error => console.error("Error loading config:", error));
-      
-      // Add event listener for the update configuration button
+
       document.getElementById("updateConfigBtn").addEventListener("click", function() {
         const updatedConfig = {
+          HIBERNATION_HEIGHT: parseInt(document.getElementById("HIBERNATION_HEIGHT").value),
           HIGH_HEIGHT: parseInt(document.getElementById("HIGH_HEIGHT").value),
           LOW_HEIGHT: parseInt(document.getElementById("LOW_HEIGHT").value),
           DEFAULT_MOTOR_SPEED: parseInt(document.getElementById("DEFAULT_MOTOR_SPEED").value),
           AREA_TOLERANCE: parseInt(document.getElementById("AREA_TOLERANCE").value),
           POS_TOLERANCE: parseInt(document.getElementById("POS_TOLERANCE").value),
           MAX_MOVEMENT_RETRIES: parseInt(document.getElementById("MAX_MOVEMENT_RETRIES").value),
-          AREA2DISTANCE_CONSTANT: parseInt(document.getElementById("AREA2DISTANCE_CONSTANT").value)
+          MOVEMENT_FACTOR: parseFloat(document.getElementById("MOVEMENT_FACTOR").value),
+          MAX_VALUE: parseInt(document.getElementById("MAX_VALUE").value),
+          AREA2DISTANCE_CONSTANT: parseInt(document.getElementById("AREA2DISTANCE_CONSTANT").value),
+          // New cycle parameters:
+          STEP_SIZE: parseInt(document.getElementById("stepSize").value),
+          RECORRIDO: document.querySelector('input[name="recorrido"]:checked').value,
+          PASO: document.querySelector('input[name="paso"]:checked').value
         };
-        
+
         fetch("/config", {
           method: "PUT",
           headers: {
@@ -78,21 +111,22 @@
           },
           body: JSON.stringify(updatedConfig)
         })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error("Failed to update configuration");
-          }
-          return response.json();
-        })
-        .then(data => {
-          alert("Configuration updated successfully");
-        })
-        .catch(error => {
-          console.error("Error updating config:", error);
-          alert("Error updating configuration");
-        });
+          .then(response => {
+            if (!response.ok) {
+              throw new Error("Failed to update configuration");
+            }
+            return response.json();
+          })
+          .then(data => {
+            alert("Configuration updated successfully");
+          })
+          .catch(error => {
+            console.error("Error updating config:", error);
+            alert("Error updating configuration");
+          });
       });
-      
+
+
       // Refresh only the overlay image every 2 seconds without reloading the whole page.
       setInterval(() => {
         const overlayImage = document.getElementById("overlayImage");
@@ -101,6 +135,99 @@
           overlayImage.src = `/overlay.jpg?t=${new Date().getTime()}`;
         }
       }, 2000);
+
+      // --- Drawing and Mask Saving functionality ---
+
+      const overlayImage = document.getElementById("overlayImage");
+      const maskCanvas = document.getElementById("maskCanvas");
+      const ctx = maskCanvas.getContext("2d");
+
+      let drawing = false;
+      let lastX = 0;
+      let lastY = 0;
+      let canvasInitialized = false;
+
+      // Set the canvas dimensions only once when the overlay image first loads
+      overlayImage.onload = function() {
+        if (!canvasInitialized) {
+          maskCanvas.width = overlayImage.width;
+          maskCanvas.height = overlayImage.height;
+          canvasInitialized = true;
+          // Set stroke properties after setting canvas dimensions
+          ctx.lineWidth = 35;  // increased stroke width
+          ctx.strokeStyle = "black";
+          ctx.lineCap = "round";
+        }
+      };
+
+
+      function startDrawing(e) {
+        drawing = true;
+        const rect = maskCanvas.getBoundingClientRect();
+        lastX = e.clientX - rect.left;
+        lastY = e.clientY - rect.top;
+      }
+
+      function draw(e) {
+        if (!drawing) return;
+        const rect = maskCanvas.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(currentX, currentY);
+        ctx.stroke();
+        lastX = currentX;
+        lastY = currentY;
+      }
+
+      function stopDrawing() {
+        drawing = false;
+      }
+
+      // Mouse event listeners for drawing on the canvas
+      maskCanvas.addEventListener("mousedown", startDrawing);
+      maskCanvas.addEventListener("mousemove", draw);
+      maskCanvas.addEventListener("mouseup", stopDrawing);
+      maskCanvas.addEventListener("mouseout", stopDrawing);
+
+      // Save Mask button functionality
+      document.getElementById("saveMaskBtn").addEventListener("click", function() {
+        // Create an offscreen canvas to produce a white-background mask
+        const offscreen = document.createElement("canvas");
+        offscreen.width = maskCanvas.width;
+        offscreen.height = maskCanvas.height;
+        const offCtx = offscreen.getContext("2d");
+
+        // Fill with white background
+        offCtx.fillStyle = "white";
+        offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+        // Draw the user strokes (black lines) over the white background.
+        offCtx.drawImage(maskCanvas, 0, 0);
+
+        offscreen.toBlob(function(blob) {
+          const formData = new FormData();
+          formData.append("file", blob, "mask.jpg");
+
+          fetch("/mask", {
+            method: "POST",
+            body: formData
+          })
+            .then(response => {
+              if (!response.ok) {
+                throw new Error("Failed to save mask");
+              }
+              return response.json();
+            })
+            .then(data => {
+              alert("Mask saved successfully");
+            })
+            .catch(error => {
+              console.error("Error saving mask:", error);
+              alert("Error saving mask");
+            });
+        }, "image/jpeg");
+      });
     });
   </script>
 </head>
@@ -111,7 +238,7 @@
     <label for="speed">Motor Speed:</label>
     <input type="number" id="speed" value="128000">
   </div>
-  
+
   <h2>Motor Control</h2>
   <div>
     <h3>Motor X</h3>
@@ -128,10 +255,16 @@
     <button id="motorZUp">Up</button>
     <button id="motorZDown">Down</button>
   </div>
-  
+
   <h2>Detected Marker with Valid Region Overlay</h2>
-  <!-- Added id to the image for JavaScript reference -->
-  <img id="overlayImage" src="/overlay.jpg" alt="Overlayed Marker Image">
+  <div id="imageContainer">
+    <!-- Overlay image that is refreshed every 2 seconds -->
+    <img id="overlayImage" src="/overlay.jpg" alt="Overlayed Marker Image">
+    <!-- Transparent canvas for drawing the mask -->
+    <canvas id="maskCanvas"></canvas>
+  </div>
+  <br>
+  <button id="saveMaskBtn">Save Mask</button>
 
   <!-- Configuration Update Form -->
   <h2>Update Configuration</h2>
@@ -163,6 +296,38 @@
     <label for="AREA2DISTANCE_CONSTANT">AREA2DISTANCE_CONSTANT:</label>
     <input type="number" id="AREA2DISTANCE_CONSTANT">
   </div>
+  <div>
+    <label for="HIBERNATION_HEIGHT">HIBERNATION_HEIGHT:</label>
+    <input type="number" id="HIBERNATION_HEIGHT" value="5000">
+  </div>
+  <div>
+    <label for="MOVEMENT_FACTOR">MOVEMENT_FACTOR:</label>
+    <input type="number" id="MOVEMENT_FACTOR" step="0.1" value="0.6">
+  </div>
+  <div>
+    <label for="MAX_VALUE">MAX_VALUE:</label>
+    <input type="number" id="MAX_VALUE" value="30">
+  </div>  
+  <!-- New Cycle Parameters -->
+  <h3>Cycle Parameters</h3>
+  <div>
+    <label for="stepSize">Step Size (cantidad de puntos del ciclo por isla):</label>
+    <input type="number" id="stepSize">
+  </div>
+  <fieldset>
+    <legend>Recorrido</legend>
+    <input type="radio" id="recorridoAzar" name="recorrido" value="azar" checked>
+    <label for="recorridoAzar">Al Azar</label>
+    <input type="radio" id="recorridoSecuencial" name="recorrido" value="secuencial">
+    <label for="recorridoSecuencial">Secuencial (de arriba abajo, zig zag...)</label>
+  </fieldset>
+  <fieldset>
+    <legend>Paso</legend>
+    <input type="radio" id="pasoContinuo" name="paso" value="continuo" checked>
+    <label for="pasoContinuo">Continuo</label>
+    <input type="radio" id="pasoSubiendoBajando" name="paso" value="subiendo_bajando">
+    <label for="pasoSubiendoBajando">Subiendo y Bajando</label>
+  </fieldset>
   <button id="updateConfigBtn">Update Configuration</button>
 </body>
 </html>

@@ -3,7 +3,7 @@ import cv2
 import serial
 import json
 import os
-from fastapi import FastAPI, BackgroundTasks, Response, HTTPException
+from fastapi import FastAPI, BackgroundTasks, Response, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
@@ -141,7 +141,10 @@ async def update_config(new_config: dict):
       "AREA_TOLERANCE": 500,
       "POS_TOLERANCE": 10,
       "MAX_MOVEMENT_RETRIES": 10,
-      "AREA2DISTANCE_CONSTANT": 60000
+      "AREA2DISTANCE_CONSTANT": 60000,
+      "STEP_SIZE": 100,                   # New parameter
+      "RECORRIDO": "azar",                # New parameter ("azar" or "secuencial")
+      "PASO": "continuo"                  # New parameter ("continuo" or "subiendo_bajando")
     }
     """
     config_path = os.path.join(os.path.dirname(__file__), "config.json")
@@ -159,6 +162,21 @@ async def update_config(new_config: dict):
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(current_config, f, indent=2)
         return {"status": "Config updated successfully", "config": current_config}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/mask")
+async def save_mask(file: UploadFile = File(...)):
+    """
+    Receives a mask image in JPG format and saves it as mask.jpg.
+    The expected image should be a black and white mask (white background with black drawn parts).
+    """
+    contents = await file.read()
+    mask_path = os.path.join(os.path.dirname(__file__), "mask.jpg")
+    try:
+        with open(mask_path, "wb") as f:
+            f.write(contents)
+        return {"status": "Mask saved successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
