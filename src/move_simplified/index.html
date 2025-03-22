@@ -126,7 +126,6 @@
           });
       });
 
-
       // Refresh only the overlay image every 2 seconds without reloading the whole page.
       setInterval(() => {
         const overlayImage = document.getElementById("overlayImage");
@@ -160,7 +159,7 @@
         }
       };
 
-
+      // Functions for mouse events
       function startDrawing(e) {
         drawing = true;
         const rect = maskCanvas.getBoundingClientRect();
@@ -185,11 +184,45 @@
         drawing = false;
       }
 
+      // Functions for touch events
+      function startDrawingTouch(e) {
+        e.preventDefault();
+        drawing = true;
+        const rect = maskCanvas.getBoundingClientRect();
+        lastX = e.touches[0].clientX - rect.left;
+        lastY = e.touches[0].clientY - rect.top;
+      }
+
+      function drawTouch(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        const rect = maskCanvas.getBoundingClientRect();
+        const currentX = e.touches[0].clientX - rect.left;
+        const currentY = e.touches[0].clientY - rect.top;
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(currentX, currentY);
+        ctx.stroke();
+        lastX = currentX;
+        lastY = currentY;
+      }
+
+      function stopDrawingTouch(e) {
+        e.preventDefault();
+        drawing = false;
+      }
+
       // Mouse event listeners for drawing on the canvas
       maskCanvas.addEventListener("mousedown", startDrawing);
       maskCanvas.addEventListener("mousemove", draw);
       maskCanvas.addEventListener("mouseup", stopDrawing);
       maskCanvas.addEventListener("mouseout", stopDrawing);
+
+      // Touch event listeners for mobile drawing
+      maskCanvas.addEventListener("touchstart", startDrawingTouch, false);
+      maskCanvas.addEventListener("touchmove", drawTouch, false);
+      maskCanvas.addEventListener("touchend", stopDrawingTouch, false);
+      maskCanvas.addEventListener("touchcancel", stopDrawingTouch, false);
 
       // Save Mask button functionality
       document.getElementById("saveMaskBtn").addEventListener("click", function() {
