@@ -68,7 +68,7 @@ def send_coord(coord):
     except Exception as e:
         print(f"Error sending coordinate: {e}")
 
-def dynamic_step(error, min_step=1.0, max_step=50.0, factor=1):
+def dynamic_step(error, min_step=1.0, max_step=5.0, factor=1):
     """
     Computes a dynamic step value based on error.
     The error is scaled by 'factor' (modified by a configuration parameter)
@@ -101,7 +101,7 @@ def heuristic_move(area, current_camera_position, target_area, target_position):
 
     # 1) Adjust based on area difference
     if area_diff > AREA_TOLERANCE:
-        step = dynamic_step(area_diff, min_step=1.0, max_step=20.0, factor=0.25)
+        step = dynamic_step(area_diff, min_step=1.0, max_step=5.0, factor=0.25)
         if area < target_area:
             # Object is too far: pull rope from all motors (reduce rope length)
             tip_move = -step
@@ -115,7 +115,7 @@ def heuristic_move(area, current_camera_position, target_area, target_position):
 
     # 2) Adjust horizontal position if area is within tolerance
     elif diff_y > POS_TOLERANCE:
-        step = dynamic_step(diff_y, min_step=1.0, max_step=15.0)
+        step = dynamic_step(diff_y, min_step=1.0, max_step=5.0)
         if current_camera_position[1] < target_position[1]:
             # Object is too far left: pull left motor and release right motor
             left_move = -step
@@ -127,7 +127,7 @@ def heuristic_move(area, current_camera_position, target_area, target_position):
 
     # 3) Adjust front-back position if still needed
     elif diff_x > POS_TOLERANCE:
-        step = dynamic_step(diff_x, min_step=1.0, max_step=15.0)
+        step = dynamic_step(diff_x, min_step=1.0, max_step=5.0)
         if current_camera_position[0] < target_position[0]:
             # Object is too low (or far): release tip motor
             tip_move = -step
