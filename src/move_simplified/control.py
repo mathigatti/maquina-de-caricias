@@ -318,14 +318,6 @@ def pixel_to_real(pixel):
 
     return (x_real, y_real, z)
 
-# Example usage:
-if __name__ == "__main__":
-    HEIGHT_TOTAL = 100  # This is just an example value in cm.
-    pixel_coord = (400, 360)
-    real_coord = pixel_to_real(pixel_coord, HEIGHT_TOTAL)
-    print(f"Pixel coordinate {pixel_coord} maps to real-world coordinate {real_coord}")
-
-
 def load_positions():
 
     config = read_config()
