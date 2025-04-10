@@ -60,7 +60,7 @@ def send_coord(coord):
     Sends the coordinate to the REST API.
     'coord' is a tuple or list of 4 values: (tip, left, right, speed).
     """
-    coord_str = f"({coord[0]},{coord[1]},{coord[2]},{coord[3]})"
+    coord_str = f"({round(coord[0],2)},{round(coord[1],2)},{round(coord[2],2)},{coord[3]})"
     try:
         response = requests.post(API_URL, params={"cmd": coord_str})
         if response.status_code != 200:
