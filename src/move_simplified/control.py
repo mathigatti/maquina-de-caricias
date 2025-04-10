@@ -101,7 +101,7 @@ def heuristic_move(area, current_camera_position, target_area, target_position):
 
     # 1) Adjust based on area difference
     if area_diff > AREA_TOLERANCE:
-        step = dynamic_step(area_diff, min_step=1.0, max_step=5.0, factor=0.25)
+        step = dynamic_step(area_diff, min_step=0.2, max_step=5.0, factor=0.01)
         if area < target_area:
             # Object is too far: pull rope from all motors (reduce rope length)
             tip_move = -step
@@ -115,7 +115,7 @@ def heuristic_move(area, current_camera_position, target_area, target_position):
 
     # 2) Adjust horizontal position if area is within tolerance
     elif diff_y > POS_TOLERANCE:
-        step = dynamic_step(diff_y, min_step=1.0, max_step=5.0)
+        step = dynamic_step(diff_y, min_step=0.2, max_step=5.0, factor=0.01)
         if current_camera_position[1] < target_position[1]:
             # Object is too far left: pull left motor and release right motor
             left_move = -step
@@ -127,7 +127,7 @@ def heuristic_move(area, current_camera_position, target_area, target_position):
 
     # 3) Adjust front-back position if still needed
     elif diff_x > POS_TOLERANCE:
-        step = dynamic_step(diff_x, min_step=1.0, max_step=5.0)
+        step = dynamic_step(diff_x, min_step=0.2, max_step=5.0, factor=0.01)
         if current_camera_position[0] < target_position[0]:
             # Object is too low (or far): release tip motor
             tip_move = -step
@@ -136,8 +136,7 @@ def heuristic_move(area, current_camera_position, target_area, target_position):
             tip_move = step
 
     move_coord = (tip_move, left_move, right_move, DEFAULT_MOTOR_SPEED)
-    print("Computed move command:", move_coord)
-    send_coord(move_coord)
+    return move_coord
 
 def deterministic_move(target_position):
     """
@@ -332,7 +331,9 @@ if __name__ == "__main__":
                         abs(current_position[0] - REST_POSITION_PX[0]) > config.get("POS_TOLERANCE", 5) or
                         abs(current_position[1] - REST_POSITION_PX[1]) > config.get("POS_TOLERANCE", 5)):
                         
-                        heuristic_move(current_area, current_position, config.get("HIBERNATION_HEIGHT", 5000), REST_POSITION_PX)
+                        move_coord = heuristic_move(current_area, current_position, config.get("HIBERNATION_HEIGHT", 5000), REST_POSITION_PX)
+                        print("Computed move command:", move_coord)
+                        send_coord(move_coord)
                     else:
                         centering = False
                 sleep(2)
@@ -377,6 +378,7 @@ if __name__ == "__main__":
             print("Current target (cm):", target_position)
             move_coord = deterministic_move(target_position)
             print("Deterministic move command:", move_coord)            
+            send_coord(move_coord)
 
             # Flush the camera buffer.
             for _ in range(5):
