@@ -272,9 +272,23 @@ def load_positions():
     """
     return [(130, 55, 210), (130, 75, 210), (110, 75, 210), (110, 55, 210)]
 
+def list_camera_ids():
+    index = 0
+    arr = []
+    while True:
+        cap = cv2.VideoCapture(index)
+        if not cap.read()[0]:
+            break
+        else:
+            arr.append(index)
+        cap.release()
+        index += 1
+    print("CAMERA IDs:", arr)
+
 if __name__ == "__main__":
     selected_dict = cv2.aruco.DICT_4X4_50
 
+    list_camera_ids()
     camera_id = 0
     cap = cv2.VideoCapture(camera_id)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
