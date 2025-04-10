@@ -357,6 +357,7 @@ if __name__ == "__main__":
                 print("Multiple markers detected in main loop. Returning to base position.")
                 break
 
+            '''
             if data is None or not valid_coords(data["position"]):
                 invalid_movement_retry_count += 1
                 if invalid_movement_retry_count >= 20:
@@ -366,6 +367,7 @@ if __name__ == "__main__":
                 continue
             else:
                 invalid_movement_retry_count = 0
+            '''
 
             print("Current target (cm):", target_position)
             move_coord = deterministic_move(target_position)
