@@ -28,8 +28,8 @@ HEIGHT_TOTAL_PX = 720
 WIDTH_MAX_PX = WIDTH_TOTAL_PX - 360
 WIDTH_MIN_PX = 360
 
-HEIGHT_MAX_PX = HEIGHT_TOTAL/2 + 360
-HEIGHT_MIN_PX = HEIGHT_TOTAL/2 - 360
+HEIGHT_MAX_PX = HEIGHT_TOTAL_PX/2 + 360
+HEIGHT_MIN_PX = HEIGHT_TOTAL_PX/2 - 360
 
 
 # --- Motor positions (in the same coordinate system as the marker detection) ---
