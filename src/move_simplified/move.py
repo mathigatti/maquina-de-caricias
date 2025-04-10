@@ -44,7 +44,7 @@ def send_to_arduino(message):
 def send_command_and_wait(cmd):
     ok_event.clear()
     send_to_arduino(cmd)
-    if ok_event.wait(timeout=10):  # wait up to 10 seconds
+    if ok_event.wait(timeout=30):  # wait up to X seconds
         ok_event.clear()
         return True
     else:
