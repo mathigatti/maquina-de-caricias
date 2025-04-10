@@ -154,18 +154,20 @@ def deterministic_move(target_position):
     target_position = np.array(target_position, dtype=float)
 
     motor_left_desired_string_length = mag(target_position - MOTOR_LEFT_POS)
-    motor_left_movement = MOTOR_LEFT_STRING_LENGTH - motor_left_desired_string_length
+    motor_left_movement = motor_left_desired_string_length - MOTOR_LEFT_STRING_LENGTH
+
     MOTOR_LEFT_STRING_LENGTH = motor_left_desired_string_length
 
     motor_right_desired_string_length = mag(target_position - MOTOR_RIGHT_POS)
-    motor_right_movement = MOTOR_RIGHT_STRING_LENGTH - motor_right_desired_string_length
+    motor_right_movement = motor_right_desired_string_length - MOTOR_RIGHT_STRING_LENGTH
     MOTOR_RIGHT_STRING_LENGTH = motor_right_desired_string_length
 
     motor_tip_desired_string_length = mag(target_position - MOTOR_TIP_POS)
-    motor_tip_movement = MOTOR_TIP_STRING_LENGTH - motor_tip_desired_string_length
+    motor_tip_movement = motor_tip_desired_string_length - MOTOR_TIP_STRING_LENGTH
     MOTOR_TIP_STRING_LENGTH = motor_tip_desired_string_length
 
     move_coord = (motor_tip_movement, motor_left_movement, motor_right_movement, DEFAULT_MOTOR_SPEED)
+
     # Update the global summatory (only the motor movements, not speed)
     moves_summatory += np.array([motor_tip_movement, motor_left_movement, motor_right_movement])
     return move_coord
