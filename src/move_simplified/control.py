@@ -115,7 +115,7 @@ def heuristic_move(area, current_camera_position, target_area, target_position):
 
     # 2) Adjust horizontal position if area is within tolerance
     elif diff_y > POS_TOLERANCE:
-        step = dynamic_step(diff_y, min_step=0.2, max_step=5.0, factor=0.01)
+        step = dynamic_step(diff_y, min_step=0.2, max_step=5.0, factor=0.03)
         if current_camera_position[1] < target_position[1]:
             # Object is too far left: pull left motor and release right motor
             left_move = -step
@@ -127,7 +127,7 @@ def heuristic_move(area, current_camera_position, target_area, target_position):
 
     # 3) Adjust front-back position if still needed
     elif diff_x > POS_TOLERANCE:
-        step = dynamic_step(diff_x, min_step=0.2, max_step=5.0, factor=0.01)
+        step = dynamic_step(diff_x, min_step=0.2, max_step=5.0, factor=0.03)
         if current_camera_position[0] < target_position[0]:
             # Object is too low (or far): release tip motor
             tip_move = -step
