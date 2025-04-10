@@ -16,11 +16,21 @@ API_URL = "http://localhost:8000/command"
 WIDTH_TOTAL = 260
 HEIGHT_TOTAL = 130
 
-HEIGHT_MAX = HEIGHT_TOTAL/2 + 60
 WIDTH_MAX = WIDTH_TOTAL - 60
-
-HEIGHT_MIN = HEIGHT_TOTAL/2 - 60
 WIDTH_MIN = 60
+
+HEIGHT_MAX = HEIGHT_TOTAL/2 + 60
+HEIGHT_MIN = HEIGHT_TOTAL/2 - 60
+
+WIDTH_TOTAL_PX = 1280
+HEIGHT_TOTAL_PX = 720
+
+WIDTH_MAX_PX = WIDTH_TOTAL_PX - 360
+WIDTH_MIN_PX = 360
+
+HEIGHT_MAX_PX = HEIGHT_TOTAL/2 + 360
+HEIGHT_MIN_PX = HEIGHT_TOTAL/2 - 360
+
 
 # --- Motor positions (in the same coordinate system as the marker detection) ---
 # We now use numpy arrays to perform vector arithmetic.
@@ -221,9 +231,9 @@ def find_aruco_markers(frame, aruco_dict_type=aruco.DICT_4X4_50, debug=True):
             for i, _ in enumerate(ids):
                 cv2.polylines(frame, [np.int32(corners[i])], True, (0, 255, 0), 2)
             # Draw the valid-region triangle
-            v1 = (int(WIDTH_MIN), int(HEIGHT_MAX))
-            v2 = (int(WIDTH_MIN), int(HEIGHT_MIN))
-            v3 = (int(WIDTH_MAX), int(HEIGHT_TOTAL/2))
+            v1 = (int(WIDTH_MIN_PX), int(HEIGHT_MAX_PX))
+            v2 = (int(WIDTH_MIN_PX), int(HEIGHT_MIN_PX))
+            v3 = (int(WIDTH_MAX_PX), int(HEIGHT_TOTAL_PX/2))
             cv2.line(frame, v1, v2, (0, 0, 255), 2)
             cv2.line(frame, v2, v3, (0, 0, 255), 2)
             cv2.line(frame, v3, v1, (0, 0, 255), 2)
@@ -264,12 +274,100 @@ def check_hibernation_mode(cap, selected_dict, debug=True):
         sleep(0.1)
     return multiple_count >= int(0.8 * retries)
 
+'''
 def load_positions():
     """
     Returns a list of target positions (in centimeters as 3D coordinates)
     for deterministic_move.
     """
     return [(30, 55, 200), (30, 75, 200), (60, 75, 210), (60, 55, 200)]
+'''
+
+def load_positions():
+
+    config = read_config()
+    high_height = config.get("HIGH_HEIGHT")
+    low_height  = config.get("LOW_HEIGHT")
+    step_size   = config.get("STEP_SIZE", 10)
+    recorrido   = config.get("RECORRIDO", "azar")
+    paso        = config.get("PASO", "continuo")
+
+    # Load mask image and convert to grayscale
+    mask_img = Image.open("mask.jpg").convert("L")
+    mask_np = np.array(mask_img)
+
+    # Create a binary image where black pixels (value 0) become 1 and white become 0.
+    # (Note: connectedComponentsWithStats considers zero as background, so we invert the image.)
+    binary = (mask_np == 0).astype(np.uint8)
+
+    # Find connected components (islands) with full 8-connectivity.
+    # Label 0 is the background.
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary, connectivity=8)
+
+    # For each island (labels 1..num_labels-1), randomly select STEP_SIZE points.
+    islands_points = []
+    for label in range(1, num_labels):
+        # Get coordinates (y, x) where the label matches.
+        island_coords = np.argwhere(labels == label)
+        if island_coords.size == 0:
+            continue
+        n_points = island_coords.shape[0]
+        if n_points >= step_size:
+            sampled_indices = np.random.choice(n_points, size=step_size, replace=False)
+            sampled_points = island_coords[sampled_indices]
+        else:
+            sampled_points = island_coords
+        # Convert (y, x) to (x, y) and add the low_height as the z coordinate.
+        points = [(int(pt[1]), int(pt[0]), low_height) for pt in sampled_points]
+        islands_points.append(points)
+
+    merged_points = []
+    if recorrido == "azar":
+        # Merge all islands' points and shuffle them randomly.
+        for points in islands_points:
+            merged_points.extend(points)
+        random.shuffle(merged_points)
+    elif recorrido == "secuencial":
+        # For each island, compute the average x and y.
+        island_averages = []
+        for points in islands_points:
+            if points:
+                avg_x = np.mean([pt[0] for pt in points])
+                avg_y = np.mean([pt[1] for pt in points])
+                island_averages.append((avg_x, avg_y))
+            else:
+                island_averages.append((float('inf'), float('inf')))
+        # Sort the islands by their average positions (x primary, y secondary).
+        sorted_islands = [
+            points for _, points in sorted(
+                zip(island_averages, islands_points), 
+                key=lambda pair: (pair[0][0], pair[0][1])
+            )
+        ]
+        # Concatenate the points from islands in the sorted order.
+        for points in sorted_islands:
+            merged_points.extend(points)
+    else:
+        raise ValueError("Invalid value for RECORRIDO. Expected 'azar' or 'secuencial'.")
+        
+    # If PASO is "subiendo_bajando", insert an intermediate point after each position.
+    # The intermediate point has the same (x, y) but with z = HIGH_HEIGHT.
+    if paso == "subiendo_bajando":
+        new_points = []
+        last_pos = None
+        for pos in merged_points:
+            if last_pos is not None:
+                new_points.append((last_pos[0], last_pos[1], high_height))
+            new_points.append((pos[0], pos[1], high_height))
+            new_points.append(pos)
+            last_pos = pos
+        new_points.append((pos[0], pos[1], high_height))
+        merged_points = new_points
+
+    # convert from pixel to cm based on calculated constant
+    pixel_to_cm = 0.23
+    return [(point[0]*pixel_to_cm, point[1]*pixel_to_cm, point[2]) for point in merged_points]
+
 
 def list_camera_ids():
     index = 0
@@ -349,8 +447,9 @@ if __name__ == "__main__":
                 
         invalid_camera_count = 0
         invalid_movement_retry_count = 0  # Counter for invalid readings
+        i = 0
         
-        for target_position in positions:
+        while True:
             if invalid_camera_count > 5:
                 raise Exception("Error: Failed to capture frame from webcam.")
 
@@ -367,18 +466,9 @@ if __name__ == "__main__":
                 print("Multiple markers detected in main loop. Returning to base position.")
                 break
 
-            '''
-            if data is None or not valid_coords(data["position"]):
-                invalid_movement_retry_count += 1
-                if invalid_movement_retry_count >= 20:
-                    print("Max retries reached. Returning to base position.")
-                    break  # trigger hibernation mode
-                sleep(0.02)
-                continue
-            else:
-                invalid_movement_retry_count = 0
-            '''
-
+            target_position = positions[i%len(positions)]
+            i+=1
+            
             print("Current target (cm):", target_position)
             move_coord = deterministic_move(target_position)
             print("Deterministic move command:", move_coord)            
