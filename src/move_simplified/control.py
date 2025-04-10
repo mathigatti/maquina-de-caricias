@@ -31,8 +31,8 @@ MOTOR_RIGHT_POS = np.array([0, 0, 0], dtype=float)                          # e.
 # Global variable to store last movement command (for tip, left, right)
 moves_summatory = np.array([0.0, 0.0, 0.0], dtype=float)
 
-REST_POSITION_CM = np.array([130, HEIGHT_TOTAL/2, 200], dtype=float)
-REST_POSITION_PX = (400, 360)
+REST_POSITION_CM = np.array([40, HEIGHT_TOTAL/2, 136], dtype=float)
+REST_POSITION_PX = (400, 360) # And AREA = 2500
 
 # --- Utility functions for vector operations ---
 def mag(vector):
@@ -269,7 +269,7 @@ def load_positions():
     Returns a list of target positions (in centimeters as 3D coordinates)
     for deterministic_move.
     """
-    return [(130, 55, 210), (130, 75, 210), (110, 75, 210), (110, 55, 210)]
+    return [(30, 55, 200), (30, 75, 200), (60, 75, 210), (60, 55, 200)]
 
 def list_camera_ids():
     index = 0
