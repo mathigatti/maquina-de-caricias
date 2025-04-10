@@ -475,45 +475,39 @@ if __name__ == "__main__":
                 sleep(2)
             print("Exiting hibernation mode. Resuming normal operation.")
 
-        # Load target positions (in centimeters) for normal operation.
-        positions = load_positions()
-        print("Target positions:", positions)
                 
         invalid_camera_count = 0
-        invalid_movement_retry_count = 0  # Counter for invalid readings
-        i = 0
-        
-        while True:
-            if invalid_camera_count > 5:
-                raise Exception("Error: Failed to capture frame from webcam.")
+                
+        while not centering:
+            # Load target positions (in centimeters) for normal operation.
+            positions = load_positions()
+            print("Target positions:", positions)
 
-            config = read_config()  # refresh parameters before each iteration
-            ret, frame = cap.read()
-            if not ret:
-                invalid_camera_count += 1
-                continue
-            
-            data = find_aruco_markers(frame, aruco_dict_type=selected_dict, debug=debug)
-            
-            # If multiple markers are detected, trigger hibernation.
-            if data is not None and data.get("multiple", False):
-                print("Multiple markers detected in main loop. Returning to base position.")
-                break
+            for target_position in positions: 
+                if invalid_camera_count > 5:
+                    raise Exception("Error: Failed to capture frame from webcam.")
 
-            target_position = positions[i%len(positions)]
-            i+=1
-            
-            print("Current target (cm):", target_position)
-            move_coord = deterministic_move(target_position)
-            print("Deterministic move command:", move_coord)            
-            send_coord(move_coord)
+                config = read_config()  # refresh parameters before each iteration
+                ret, frame = cap.read()
+                if not ret:
+                    invalid_camera_count += 1
+                    continue
+                
+                data = find_aruco_markers(frame, aruco_dict_type=selected_dict, debug=debug)
+                
+                # If multiple markers are detected, trigger hibernation.
+                if data is not None and data.get("multiple", False):
+                    print("Multiple markers detected in main loop. Returning to base position.")
+                    centering = True
+                    break
+                
+                print("Current target (cm):", target_position)
+                move_coord = deterministic_move(target_position)
+                print("Deterministic move command:", move_coord)            
+                send_coord(move_coord)
 
-            # Flush the camera buffer.
-            for _ in range(5):
-                cap.grab()
+                # Flush the camera buffer.
+                for _ in range(5):
+                    cap.grab()
 
-            sleep(0.02)
-
-        centering = True
-        
-    cap.release()
+                sleep(0.02)
