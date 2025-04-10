@@ -133,19 +133,6 @@ async def update_config(new_config: dict):
     """
     Update config.json with provided fields.
     Only provided fields will be updated; other fields remain unchanged.
-    Expected JSON example:
-    {
-      "HIGH_HEIGHT": 2500,
-      "LOW_HEIGHT": 1500,
-      "DEFAULT_MOTOR_SPEED": 2000,
-      "AREA_TOLERANCE": 500,
-      "POS_TOLERANCE": 10,
-      "MAX_MOVEMENT_RETRIES": 10,
-      "AREA2DISTANCE_CONSTANT": 60000,
-      "STEP_SIZE": 100,                   # New parameter
-      "RECORRIDO": "azar",                # New parameter ("azar" or "secuencial")
-      "PASO": "continuo"                  # New parameter ("continuo" or "subiendo_bajando")
-    }
     """
     config_path = os.path.join(os.path.dirname(__file__), "config.json")
     # Load existing config if it exists; otherwise, start with an empty dictionary.
