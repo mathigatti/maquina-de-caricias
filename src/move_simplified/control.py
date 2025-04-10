@@ -313,8 +313,8 @@ def pixel_to_real(pixel):
     dy_cm = dy_pixels * scale
 
     # Calculate the real-world coordinates using the reference point
-    x_real = 40 + dx_cm
-    y_real = (HEIGHT_TOTAL / 2) + dy_cm
+    x_real = max(0, 40 + dx_cm)
+    y_real = max(0, (HEIGHT_TOTAL / 2) + dy_cm)
 
     return (x_real, y_real, z)
 
