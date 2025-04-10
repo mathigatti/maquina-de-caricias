@@ -1,4 +1,5 @@
-from vpython import *
+#from vpython import *
+from vpython import canvas, color, vector, box, cylinder, sphere, mag, dot, norm, rate
 
 # Set up the 3D scene (mouse controls are enabled by default)
 scene = canvas(title="3D Three-Motor Suspension Simulation",
