@@ -40,9 +40,9 @@ def mag(vector):
     return np.linalg.norm(vector)
 
 # Pre-compute initial string lengths (distance between rest position and motor positions)
-MOTOR_TIP_STRING_LENGTH = mag(REST_POSITION_CM - MOTOR_TIP_POS)
-MOTOR_LEFT_STRING_LENGTH = mag(REST_POSITION_CM - MOTOR_LEFT_POS)
-MOTOR_RIGHT_STRING_LENGTH = mag(REST_POSITION_CM - MOTOR_RIGHT_POS)
+motor_tip_string_length = mag(REST_POSITION_CM - MOTOR_TIP_POS)
+motor_left_string_length = mag(REST_POSITION_CM - MOTOR_LEFT_POS)
+motor_right_string_length = mag(REST_POSITION_CM - MOTOR_RIGHT_POS)
 
 def read_config():
     """Reads configuration parameters from config.json.
@@ -127,7 +127,7 @@ def heuristic_move(area, current_camera_position, target_area, target_position):
 
     # 3) Adjust front-back position if still needed
     elif diff_x > POS_TOLERANCE:
-        step = dynamic_step(diff_x, min_step=0.2, max_step=5.0, factor=0.03)
+        step = dynamic_step(diff_x, min_step=0.2, max_step=5.0, factor=0.05)
         if current_camera_position[0] < target_position[0]:
             # Object is too low (or far): release tip motor
             tip_move = -step
@@ -144,7 +144,7 @@ def deterministic_move(target_position):
     by comparing the desired distances from each motor and updating the stored lengths.
     Returns a 4-tuple: (tip_move, left_move, right_move, DEFAULT_MOTOR_SPEED)
     """
-    global moves_summatory, MOTOR_LEFT_STRING_LENGTH, MOTOR_RIGHT_STRING_LENGTH, MOTOR_TIP_STRING_LENGTH
+    global moves_summatory, motor_left_string_length, motor_right_string_length, motor_tip_string_length
 
     config = read_config()
     DEFAULT_MOTOR_SPEED = config.get("DEFAULT_MOTOR_SPEED", 100)
@@ -153,17 +153,17 @@ def deterministic_move(target_position):
     target_position = np.array(target_position, dtype=float)
 
     motor_left_desired_string_length = mag(target_position - MOTOR_LEFT_POS)
-    motor_left_movement = motor_left_desired_string_length - MOTOR_LEFT_STRING_LENGTH
+    motor_left_movement = motor_left_desired_string_length - motor_left_string_length
 
-    MOTOR_LEFT_STRING_LENGTH = motor_left_desired_string_length
+    motor_left_string_length = motor_left_desired_string_length
 
     motor_right_desired_string_length = mag(target_position - MOTOR_RIGHT_POS)
-    motor_right_movement = motor_right_desired_string_length - MOTOR_RIGHT_STRING_LENGTH
-    MOTOR_RIGHT_STRING_LENGTH = motor_right_desired_string_length
+    motor_right_movement = motor_right_desired_string_length - motor_right_string_length
+    motor_right_string_length = motor_right_desired_string_length
 
     motor_tip_desired_string_length = mag(target_position - MOTOR_TIP_POS)
-    motor_tip_movement = motor_tip_desired_string_length - MOTOR_TIP_STRING_LENGTH
-    MOTOR_TIP_STRING_LENGTH = motor_tip_desired_string_length
+    motor_tip_movement = motor_tip_desired_string_length - motor_tip_string_length
+    motor_tip_string_length = motor_tip_desired_string_length
 
     move_coord = (motor_tip_movement, motor_left_movement, motor_right_movement, DEFAULT_MOTOR_SPEED)
 
@@ -335,6 +335,10 @@ if __name__ == "__main__":
                         print("Computed move command:", move_coord)
                         send_coord(move_coord)
                     else:
+                        motor_tip_string_length = mag(REST_POSITION_CM - MOTOR_TIP_POS)
+                        motor_left_string_length = mag(REST_POSITION_CM - MOTOR_LEFT_POS)
+                        motor_right_string_length = mag(REST_POSITION_CM - MOTOR_RIGHT_POS)
+
                         centering = False
                 sleep(2)
             print("Exiting hibernation mode. Resuming normal operation.")
