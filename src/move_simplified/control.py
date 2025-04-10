@@ -28,8 +28,8 @@ HEIGHT_TOTAL_PX = 720
 WIDTH_MAX_PX = WIDTH_TOTAL_PX - 360
 WIDTH_MIN_PX = 360
 
-HEIGHT_MAX_PX = HEIGHT_TOTAL_PX/2 + 360
-HEIGHT_MIN_PX = HEIGHT_TOTAL_PX/2 - 360
+HEIGHT_MAX_PX = HEIGHT_TOTAL_PX/2 + 260
+HEIGHT_MIN_PX = HEIGHT_TOTAL_PX/2 - 260
 
 
 # --- Motor positions (in the same coordinate system as the marker detection) ---
@@ -283,6 +283,49 @@ def load_positions():
     return [(30, 55, 200), (30, 75, 200), (60, 75, 210), (60, 55, 200)]
 '''
 
+def pixel_to_real(pixel):
+    """
+    Converts pixel coordinates from an image to real-world coordinates in cm.
+    
+    Parameters:
+        pixel (tuple): A tuple (px, py) with the pixel coordinates.
+        height_total (float): The total height in cm in the real-world space.
+        
+    Returns:
+        tuple: Real-world coordinates (x, y) in cm.
+        
+    Known reference:
+        - Pixel (400, 360) maps to (40, height_total/2).
+        - Scale: 1 pixel equals 0.23 cm.
+    """
+    # Scale factor in cm/pixel
+    scale = 0.23
+
+    # Unpack the pixel coordinates
+    px, py, z = pixel
+
+    # Calculate displacements from the reference pixel
+    dx_pixels = px - 400
+    dy_pixels = py - 360
+
+    # Convert displacement from pixels to centimeters
+    dx_cm = dx_pixels * scale
+    dy_cm = dy_pixels * scale
+
+    # Calculate the real-world coordinates using the reference point
+    x_real = 40 + dx_cm
+    y_real = (HEIGHT_TOTAL / 2) + dy_cm
+
+    return (x_real, y_real, z)
+
+# Example usage:
+if __name__ == "__main__":
+    HEIGHT_TOTAL = 100  # This is just an example value in cm.
+    pixel_coord = (400, 360)
+    real_coord = pixel_to_real(pixel_coord, HEIGHT_TOTAL)
+    print(f"Pixel coordinate {pixel_coord} maps to real-world coordinate {real_coord}")
+
+
 def load_positions():
 
     config = read_config()
@@ -365,8 +408,7 @@ def load_positions():
         merged_points = new_points
 
     # convert from pixel to cm based on calculated constant
-    pixel_to_cm = 0.23
-    return [(point[0]*pixel_to_cm, point[1]*pixel_to_cm, point[2]) for point in merged_points]
+    return [pixel_to_real(point) for point in merged_points]
 
 
 def list_camera_ids():
