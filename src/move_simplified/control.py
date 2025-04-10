@@ -312,7 +312,12 @@ if __name__ == "__main__":
 
             # Continue in hibernation until markers are under control.
             while centering or check_hibernation_mode(cap, selected_dict, debug=debug):
+                # Flush the camera buffer.
+                for _ in range(5):
+                    cap.grab()
+
                 ret, frame = cap.read()
+
                 if not ret:
                     continue
                 data = find_aruco_markers(frame, aruco_dict_type=selected_dict, debug=debug)
