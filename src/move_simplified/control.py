@@ -227,7 +227,10 @@ def find_aruco_markers(frame, aruco_dict_type=aruco.DICT_4X4_50, debug=True):
     detector = aruco.ArucoDetector(aruco_dict, parameters)
     corners, ids, _ = detector.detectMarkers(gray)
 
+    
     if ids is not None:
+        result = {"hibernation": False}
+
         if debug:
             for i, _ in enumerate(ids):
                 cv2.polylines(frame, [np.int32(corners[i])], True, (0, 255, 0), 2)
@@ -242,21 +245,24 @@ def find_aruco_markers(frame, aruco_dict_type=aruco.DICT_4X4_50, debug=True):
 
         print("Detected marker IDs:", ids)
         try:
-            # Look for marker with id == 3
             ids_list = ids.tolist()
             ids = [id[0] for id in ids_list]
-            if ids.index(1):
-                return {"hibernation": True}
-            i = ids.index(3)
-            x_min = int(min(corners[i][0][:, 0]))
-            y_min = int(min(corners[i][0][:, 1]))
-            width = int(max(corners[i][0][:, 0]) - x_min)
-            height = int(max(corners[i][0][:, 1]) - y_min)
-            area = width * height            
-            return {"position": (x_min, y_min), "width": width, "height": height, "area": area, "hibernation": False}
+
+            if 1 in ids:
+                result["hibernation"] = True
+
+            if 3 in ids:
+                i = ids.index(3)
+                x_min = int(min(corners[i][0][:, 0]))
+                y_min = int(min(corners[i][0][:, 1]))
+                width = int(max(corners[i][0][:, 0]) - x_min)
+                height = int(max(corners[i][0][:, 1]) - y_min)
+                area = width * height            
+                result = {"position": (x_min, y_min), "width": width, "height": height, "area": area, "hibernation": result["hibernation"]}
         except Exception as e:
             print("Error processing marker with id==3:", traceback.format_exc())
-            return None
+
+        return result
     else:
         # No markers detected.
         return None
