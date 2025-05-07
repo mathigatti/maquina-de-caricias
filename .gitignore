@@ -1,5 +1,5 @@
-.ipynb_checkpoints
-src/move/checkpoints
-src/move/sam2_b.pt
-src/move/coords.txt
-**/__pycache__
+**/.ipynb_checkpoints/
+**/move/checkpoints/
+**/move/sam2_b.pt
+**/move/coords.txt
+**/__pycache__/

@@ -2,6 +2,7 @@ import json
 import random
 import traceback
 from time import sleep
+from typing import List, Tuple
 
 import cv2
 import cv2.aruco as aruco
@@ -259,29 +260,25 @@ def find_aruco_markers(frame, aruco_dict_type=aruco.DICT_4X4_50, debug=True):
 
 def check_hibernation_mode(cap, selected_dict, debug=True):
     """
-    Captures 5 consecutive frames and if more than one marker is detected
+    Captures frames and if more than one marker is detected
     in at least 80% of them, returns True to trigger hibernation mode.
     """
-    retries = 5
+    retries = 20
     multiple_count = 0
-    for i in range(retries):
+    for _ in range(retries):
         ret, frame = cap.read()
         if not ret:
             continue
         data = find_aruco_markers(frame, aruco_dict_type=selected_dict, debug=debug)
         if data is not None and data.get("multiple", False):
             multiple_count += 1
-        sleep(0.1)
-    return multiple_count >= int(0.8 * retries)
 
-'''
-def load_positions():
-    """
-    Returns a list of target positions (in centimeters as 3D coordinates)
-    for deterministic_move.
-    """
-    return [(30, 55, 200), (30, 75, 200), (60, 75, 210), (60, 55, 200)]
-'''
+        # Flush the camera buffer.
+        for _ in range(5):
+            cap.grab()
+
+        sleep(0.1)
+    return multiple_count >= int(0.7 * retries)
 
 def pixel_to_real(pixel):
     """
@@ -318,90 +315,76 @@ def pixel_to_real(pixel):
 
     return (x_real, y_real, z)
 
-def load_positions():
+def load_clusters(mask_path: str, step_size: int = 10) -> List[List[Tuple[int, int]]]:
+    """
+    Load a mask image, find connected components (islands),
+    and sample up to `step_size` points per island.
 
-    config = read_config()
-    high_height = config.get("HIGH_HEIGHT")
-    low_height  = config.get("LOW_HEIGHT")
-    step_size   = config.get("STEP_SIZE", 10)
-    recorrido   = config.get("RECORRIDO", "azar")
-    paso        = config.get("PASO", "continuo")
-
-    # Load mask image and convert to grayscale
-    mask_img = Image.open("mask.jpg").convert("L")
-    mask_np = np.array(mask_img)
-
-    # Create a binary image where black pixels (value 0) become 1 and white become 0.
-    # (Note: connectedComponentsWithStats considers zero as background, so we invert the image.)
+    Returns
+    -------
+    clusters : List of clusters, each a list of (x, y) pixel coordinates.
+    """
+    # Load and threshold mask
+    mask = Image.open(mask_path).convert("L")
+    mask_np = np.array(mask)
     binary = (mask_np == 0).astype(np.uint8)
 
-    # Find connected components (islands) with full 8-connectivity.
-    # Label 0 is the background.
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary, connectivity=8)
+    # Connected components
+    num_labels, labels, _, _ = cv2.connectedComponentsWithStats(binary, connectivity=8)
 
-    # For each island (labels 1..num_labels-1), randomly select STEP_SIZE points.
-    islands_points = []
-    for label in range(1, num_labels):
-        # Get coordinates (y, x) where the label matches.
-        island_coords = np.argwhere(labels == label)
-        if island_coords.size == 0:
+    clusters: List[List[Tuple[int, int]]] = []
+    for label in range(1, num_labels):  # skip background label 0
+        coords = np.argwhere(labels == label)
+        if coords.size == 0:
             continue
-        n_points = island_coords.shape[0]
-        if n_points >= step_size:
-            sampled_indices = np.random.choice(n_points, size=step_size, replace=False)
-            sampled_points = island_coords[sampled_indices]
+        # sample points
+        if len(coords) > step_size:
+            choices = np.random.choice(len(coords), size=step_size, replace=False)
+            sampled = coords[choices]
         else:
-            sampled_points = island_coords
-        # Convert (y, x) to (x, y) and add the low_height as the z coordinate.
-        points = [(int(pt[1]), int(pt[0]), low_height) for pt in sampled_points]
-        islands_points.append(points)
+            sampled = coords
+        # convert (row, col) to (x, y)
+        points = [(int(pt[1]), int(pt[0])) for pt in sampled]
+        clusters.append(points)
 
-    merged_points = []
+    return clusters
+
+def get_next_movement(
+    clusters: List[List[Tuple[int, int]]],
+    cluster_index: int,
+    recorrido: str = "azar",
+) -> Tuple[int, int]:
+    """
+    Given clusters of (x, y) points, return one next point from the specified cluster.
+
+    Parameters
+    ----------
+    clusters : List of clusters
+    cluster_index : index of the cluster to sample from
+    recorrido : 'azar' for random choice, 'secuencial' to cycle through
+
+    Returns
+    -------
+    A single (x, y) point from the chosen cluster.
+    """
+    if cluster_index < 0 or cluster_index >= len(clusters):
+        raise IndexError(f"Cluster index {cluster_index} out of range")
+    cluster = clusters[cluster_index]
+    if not cluster:
+        raise ValueError(f"Cluster {cluster_index} is empty")
+
     if recorrido == "azar":
-        # Merge all islands' points and shuffle them randomly.
-        for points in islands_points:
-            merged_points.extend(points)
-        random.shuffle(merged_points)
+        return random.choice(cluster)
     elif recorrido == "secuencial":
-        # For each island, compute the average x and y.
-        island_averages = []
-        for points in islands_points:
-            if points:
-                avg_x = np.mean([pt[0] for pt in points])
-                avg_y = np.mean([pt[1] for pt in points])
-                island_averages.append((avg_x, avg_y))
-            else:
-                island_averages.append((float('inf'), float('inf')))
-        # Sort the islands by their average positions (x primary, y secondary).
-        sorted_islands = [
-            points for _, points in sorted(
-                zip(island_averages, islands_points), 
-                key=lambda pair: (pair[0][0], pair[0][1])
-            )
-        ]
-        # Concatenate the points from islands in the sorted order.
-        for points in sorted_islands:
-            merged_points.extend(points)
+        # maintain a cursor per cluster
+        if not hasattr(get_next_movement, "_cursors"):
+            get_next_movement._cursors = {}
+        cursor = get_next_movement._cursors.get(cluster_index, 0)
+        point = cluster[cursor % len(cluster)]
+        get_next_movement._cursors[cluster_index] = cursor + 1
+        return point
     else:
-        raise ValueError("Invalid value for RECORRIDO. Expected 'azar' or 'secuencial'.")
-        
-    # If PASO is "subiendo_bajando", insert an intermediate point after each position.
-    # The intermediate point has the same (x, y) but with z = HIGH_HEIGHT.
-    if paso == "subiendo_bajando":
-        new_points = []
-        last_pos = None
-        for pos in merged_points:
-            if last_pos is not None:
-                new_points.append((last_pos[0], last_pos[1], high_height))
-            new_points.append((pos[0], pos[1], high_height))
-            new_points.append(pos)
-            last_pos = pos
-        new_points.append((pos[0], pos[1], high_height))
-        merged_points = new_points
-
-    # convert from pixel to cm based on calculated constant
-    return [pixel_to_real(point) for point in merged_points]
-
+        raise ValueError("RECORRIDO must be 'azar' or 'secuencial'")
 
 def list_camera_ids():
     index = 0
@@ -434,8 +417,6 @@ if __name__ == "__main__":
     ret, frame = cap.read()
 
     while True:
-        # Always update the config before a major step.
-        config = read_config()
         # First, check if we should be in hibernation mode.
         if centering or check_hibernation_mode(cap, selected_dict, debug=debug):
             print("Hibernation mode triggered. Moving to hibernation target.")
@@ -443,6 +424,9 @@ if __name__ == "__main__":
 
             # Continue in hibernation until markers are under control.
             while centering or check_hibernation_mode(cap, selected_dict, debug=debug):
+                # Always update the config before a major step.
+                config = read_config()
+
                 # Flush the camera buffer.
                 for _ in range(5):
                     cap.grab()
@@ -474,40 +458,39 @@ if __name__ == "__main__":
                         centering = False
                 sleep(2)
             print("Exiting hibernation mode. Resuming normal operation.")
-
-                
-        invalid_camera_count = 0
                 
         while not centering:
-            # Load target positions (in centimeters) for normal operation.
-            positions = load_positions()
-            print("Target positions:", positions)
+            config = read_config()
+            clusters = load_clusters("mask.jpg", config.get("STEP_SIZE", 10))
+            
+            for cluster_id in range(len(clusters)):
+                for _ in range(config.get("STEP_SIZE", 10)):
+                    x, y = get_next_movement(clusters, cluster_id, config.get("RECORRIDO", "azar"))
+                    
+                    if config.get("PASO", "continuo") == "subiendo_bajando":
+                        target_positions = [pixel_to_real((x, y, config.get("LOW_HEIGHT"))), pixel_to_real((x, y, config.get("HIGH_HEIGHT")))]
+                    else:
+                        target_positions = [pixel_to_real((x, y, config.get("LOW_HEIGHT")))]
+                    
+                    for target_position in target_positions:
+                        ret, frame = cap.read()
+                        if not ret:
+                            continue
+                        data = find_aruco_markers(frame, aruco_dict_type=selected_dict, debug=debug)
+                        
+                        # If multiple markers are detected, trigger hibernation.
+                        if data is not None and data.get("multiple", False):
+                            print("Multiple markers detected in main loop. Returning to base position.")
+                            centering = True
+                            break
+                        
+                        print("Current target (cm):", target_position)
+                        move_coord = deterministic_move(target_position)
+                        print("Deterministic move command:", move_coord)            
+                        send_coord(move_coord)
 
-            for target_position in positions: 
-                if invalid_camera_count > 5:
-                    raise Exception("Error: Failed to capture frame from webcam.")
+                        # Flush the camera buffer.
+                        for _ in range(5):
+                            cap.grab()
 
-                config = read_config()  # refresh parameters before each iteration
-                ret, frame = cap.read()
-                if not ret:
-                    invalid_camera_count += 1
-                    continue
-                
-                data = find_aruco_markers(frame, aruco_dict_type=selected_dict, debug=debug)
-                
-                # If multiple markers are detected, trigger hibernation.
-                if data is not None and data.get("multiple", False):
-                    print("Multiple markers detected in main loop. Returning to base position.")
-                    centering = True
-                    break
-                
-                print("Current target (cm):", target_position)
-                move_coord = deterministic_move(target_position)
-                print("Deterministic move command:", move_coord)            
-                send_coord(move_coord)
-
-                # Flush the camera buffer.
-                for _ in range(5):
-                    cap.grab()
-
-                sleep(0.02)
+                        sleep(0.02)
