@@ -152,41 +152,83 @@
       document.getElementById("motorYDown").addEventListener("click", () => sendCommand(0,10,0));
       document.getElementById("motorZUp").addEventListener("click", () => sendCommand(0,0,-10));
       document.getElementById("motorZDown").addEventListener("click", () => sendCommand(0,0,10));
-      fetch("/config")
-        .then(r => { if(!r.ok) throw new Error("Failed to load configuration"); return r.json(); })
-        .then(config => {
-          ["HIGH_HEIGHT","LOW_HEIGHT","DEFAULT_MOTOR_SPEED","AREA_TOLERANCE","POS_TOLERANCE","MAX_MOVEMENT_RETRIES","AREA2DISTANCE_CONSTANT"].forEach(id => {
-            if(config[id]!==undefined) document.getElementById(id).value = config[id];
-          });
-          if(config.STEP_SIZE!==undefined) document.getElementById("stepSize").value = config.STEP_SIZE;
-          if(config.RECORRIDO) document.querySelector(`input[name="recorrido"][value="${config.RECORRIDO}"]`).checked=true;
-          if(config.PASO) document.querySelector(`input[name="paso"][value="${config.PASO}"]`).checked=true;
-          if(config.HIBERNATION_HEIGHT!==undefined) document.getElementById("HIBERNATION_HEIGHT").value = config.HIBERNATION_HEIGHT;
-          if(config.MOVEMENT_FACTOR!==undefined) document.getElementById("MOVEMENT_FACTOR").value = config.MOVEMENT_FACTOR;
-          if(config.MAX_VALUE!==undefined) document.getElementById("MAX_VALUE").value = config.MAX_VALUE;
-        })
-        .catch(console.error);
-      document.getElementById("updateConfigBtn").addEventListener("click", function() {
-        const updatedConfig = {
-          HIBERNATION_HEIGHT: parseInt(document.getElementById("HIBERNATION_HEIGHT").value),
-          HIGH_HEIGHT: parseInt(document.getElementById("HIGH_HEIGHT").value),
-          LOW_HEIGHT: parseInt(document.getElementById("LOW_HEIGHT").value),
-          DEFAULT_MOTOR_SPEED: parseInt(document.getElementById("DEFAULT_MOTOR_SPEED").value),
-          AREA_TOLERANCE: parseInt(document.getElementById("AREA_TOLERANCE").value),
-          POS_TOLERANCE: parseInt(document.getElementById("POS_TOLERANCE").value),
-          MAX_MOVEMENT_RETRIES: parseInt(document.getElementById("MAX_MOVEMENT_RETRIES").value),
-          MOVEMENT_FACTOR: parseFloat(document.getElementById("MOVEMENT_FACTOR").value),
-          MAX_VALUE: parseInt(document.getElementById("MAX_VALUE").value),
-          AREA2DISTANCE_CONSTANT: parseInt(document.getElementById("AREA2DISTANCE_CONSTANT").value),
-          STEP_SIZE: parseInt(document.getElementById("stepSize").value),
-          RECORRIDO: document.querySelector('input[name="recorrido"]:checked').value,
-          PASO: document.querySelector('input[name="paso"]:checked').value
+
+
+      // 1) Load config.json via your GET /config endpoint
+      function loadConfig() {
+        fetch("/config")
+          .then(res => {
+            if (!res.ok) throw new Error("Failed to load configuration");
+            return res.json();
+          })
+          .then(cfg => {
+            // these match exactly the keys in your config.json
+            const keys = [
+              "HIBERNATION_HEIGHT",
+              "HIGH_HEIGHT",
+              "LOW_HEIGHT",
+              "DEFAULT_MOTOR_SPEED",
+              "AREA_TOLERANCE",
+              "POS_TOLERANCE",
+              "MOVEMENT_FACTOR"
+            ];
+            keys.forEach(k => {
+              if (cfg[k] !== undefined) {
+                document.getElementById(k).value = cfg[k];
+              }
+            });
+            if (cfg.STEP_SIZE !== undefined) {
+              document.getElementById("stepSize").value = cfg.STEP_SIZE;
+            }
+            if (cfg.RECORRIDO) {
+              document.querySelector(`input[name="recorrido"][value="${cfg.RECORRIDO}"]`).checked = true;
+            }
+            if (cfg.PASO) {
+              document.querySelector(`input[name="paso"][value="${cfg.PASO}"]`).checked = true;
+            }
+          })
+          .catch(err => console.error(err));
+      }
+
+      // 2) Send back only those same keys on PUT /config
+      function updateConfig() {
+        const newCfg = {
+          HIBERNATION_HEIGHT: parseInt(document.getElementById("HIBERNATION_HEIGHT").value, 10),
+          HIGH_HEIGHT:         parseInt(document.getElementById("HIGH_HEIGHT").value, 10),
+          LOW_HEIGHT:          parseInt(document.getElementById("LOW_HEIGHT").value, 10),
+          DEFAULT_MOTOR_SPEED: parseInt(document.getElementById("DEFAULT_MOTOR_SPEED").value, 10),
+          AREA_TOLERANCE:      parseInt(document.getElementById("AREA_TOLERANCE").value, 10),
+          POS_TOLERANCE:       parseInt(document.getElementById("POS_TOLERANCE").value, 10),
+          MOVEMENT_FACTOR:     parseFloat(document.getElementById("MOVEMENT_FACTOR").value),
+          STEP_SIZE:           parseInt(document.getElementById("stepSize").value, 10),
+          RECORRIDO:           document.querySelector('input[name="recorrido"]:checked').value,
+          PASO:                document.querySelector('input[name="paso"]:checked').value
         };
-        fetch("/config", {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(updatedConfig)})
-          .then(r => { if(!r.ok) throw new Error("Failed to update configuration"); return r.json(); })
-          .then(() => alert("Configuration updated successfully"))
-          .catch(e => {console.error(e); alert("Error updating configuration");});
-      });
+
+        fetch("/config", {
+          method:  "PUT",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(newCfg)
+        })
+        .then(res => {
+          if (!res.ok) throw new Error("Failed to update configuration");
+          return res.json();
+        })
+        .then(() => alert("Configuration updated successfully"))
+        .catch(err => {
+          console.error(err);
+          alert("Error updating configuration");
+        });
+      }
+
+      // wire up
+      document.getElementById("updateConfigBtn")
+              .addEventListener("click", updateConfig);
+
+      // finally, load on start
+      loadConfig();
+
+
       setInterval(() => {
         const img = document.getElementById("overlayImage");
         if(img) img.src = `/overlay.jpg?t=${new Date().getTime()}`;

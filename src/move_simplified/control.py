@@ -466,6 +466,7 @@ if __name__ == "__main__":
 
                         centering = False
                 sleep(2)
+
             print("Exiting hibernation mode. Resuming normal operation.")
                 
         while not centering:
