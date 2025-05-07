@@ -218,7 +218,7 @@ def valid_coords(aruco_center):
 def find_aruco_markers(frame, aruco_dict_type=aruco.DICT_4X4_50, debug=True):
     """
     Detects ArUco markers in a frame.
-    If more than one marker is detected, returns {"multiple": True}.
+    If marker with id 1 is found (hibernation marker), returns {"hibernation": True}.
     Otherwise, if exactly one marker with id 3 is found, returns its data.
     """
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -244,13 +244,16 @@ def find_aruco_markers(frame, aruco_dict_type=aruco.DICT_4X4_50, debug=True):
         try:
             # Look for marker with id == 3
             ids_list = ids.tolist()
-            i = [id[0] for id in ids_list].index(3)
+            ids = [id[0] for id in ids_list]
+            if ids.index(1):
+                return {"hibernation": True}
+            i = ids.index(3)
             x_min = int(min(corners[i][0][:, 0]))
             y_min = int(min(corners[i][0][:, 1]))
             width = int(max(corners[i][0][:, 0]) - x_min)
             height = int(max(corners[i][0][:, 1]) - y_min)
             area = width * height            
-            return {"position": (x_min, y_min), "width": width, "height": height, "area": area, "multiple": len(ids_list) > 1}
+            return {"position": (x_min, y_min), "width": width, "height": height, "area": area, "hibernation": False}
         except Exception as e:
             print("Error processing marker with id==3:", traceback.format_exc())
             return None
@@ -264,21 +267,21 @@ def check_hibernation_mode(cap, selected_dict, debug=True):
     in at least 80% of them, returns True to trigger hibernation mode.
     """
     retries = 20
-    multiple_count = 0
+    hibernation_count = 0
     for _ in range(retries):
         ret, frame = cap.read()
         if not ret:
             continue
         data = find_aruco_markers(frame, aruco_dict_type=selected_dict, debug=debug)
-        if data is not None and data.get("multiple", False):
-            multiple_count += 1
+        if data is not None and data.get("hibernation"):
+            hibernation_count += 1
 
         # Flush the camera buffer.
         for _ in range(5):
             cap.grab()
 
         sleep(0.1)
-    return multiple_count >= int(0.7 * retries)
+    return hibernation_count >= int(0.5 * retries)
 
 def pixel_to_real(pixel):
     """
@@ -479,8 +482,8 @@ if __name__ == "__main__":
                         data = find_aruco_markers(frame, aruco_dict_type=selected_dict, debug=debug)
                         
                         # If multiple markers are detected, trigger hibernation.
-                        if data is not None and data.get("multiple", False):
-                            print("Multiple markers detected in main loop. Returning to base position.")
+                        if data is not None and data.get("hibernation"):
+                            print("Hibernation marker detected in main loop. Returning to base position.")
                             centering = True
                             break
                         
