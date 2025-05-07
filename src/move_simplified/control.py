@@ -478,7 +478,7 @@ if __name__ == "__main__":
                     x, y = get_next_movement(clusters, cluster_id, config.get("RECORRIDO", "azar"))
                     
                     if config.get("PASO", "continuo") == "subiendo_bajando":
-                        target_positions = [pixel_to_real((x, y, config.get("LOW_HEIGHT"))), pixel_to_real((x, y, config.get("HIGH_HEIGHT")))]
+                        target_positions = [pixel_to_real((x, y, config.get("HIGH_HEIGHT"))), pixel_to_real((x, y, config.get("LOW_HEIGHT"))), pixel_to_real((x, y, config.get("HIGH_HEIGHT")))]
                     else:
                         target_positions = [pixel_to_real((x, y, config.get("LOW_HEIGHT")))]
                     
