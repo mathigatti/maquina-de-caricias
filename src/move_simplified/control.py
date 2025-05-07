@@ -260,7 +260,7 @@ def find_aruco_markers(frame, aruco_dict_type=aruco.DICT_4X4_50, debug=True):
                 area = width * height            
                 result = {"position": (x_min, y_min), "width": width, "height": height, "area": area, "hibernation": result["hibernation"]}
         except Exception as e:
-            print("Error processing marker with id==3:", traceback.format_exc())
+            print("Error processing markers:", traceback.format_exc())
 
         return result
     else:
@@ -448,7 +448,7 @@ if __name__ == "__main__":
                 print("Hibernation status:", data)
 
                 # If a valid marker is found, adjust to move toward rest position.
-                if data is not None:
+                if data is not None and "position" in data:
                     current_area = data["area"]
                     current_position = data["position"]
                     # Compare current values with hibernation parameters
