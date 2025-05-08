@@ -136,10 +136,10 @@
 
             <!-- Step Size -->
             <div class="col-md-6 mb-3">
-              <label for="stepSize" class="form-label">STEP_SIZE<br><span id="STEP_SIZEValue"></span></label>
+              <label for="STEP_SIZE" class="form-label">STEP_SIZE<br><span id="STEP_SIZEValue"></span></label>
               <input
                 type="range"
-                id="stepSize"
+                id="STEP_SIZE"
                 class="form-range"
                 min="1"
                 max="30"
@@ -229,7 +229,7 @@
               }
             });
             if (cfg.STEP_SIZE !== undefined) {
-              document.getElementById("stepSize").value = cfg.STEP_SIZE;
+              document.getElementById("STEP_SIZE").value = cfg.STEP_SIZE;
             }
             if (cfg.RECORRIDO) {
               document.querySelector(`input[name="recorrido"][value="${cfg.RECORRIDO}"]`).checked = true;
@@ -288,7 +288,7 @@
       }
 
       // call for each of your sliders
-      ["speed", "HIGH_HEIGHT", "LOW_HEIGHT", "AREA_TOLERANCE", "POS_TOLERANCE", "stepSize"]
+      ["DEFAULT_MOTOR_SPEED", "HIGH_HEIGHT", "LOW_HEIGHT", "AREA_TOLERANCE", "POS_TOLERANCE", "STEP_SIZE"]
         .forEach(bindSlider);
 
       setInterval(() => {
