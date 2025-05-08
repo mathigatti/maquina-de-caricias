@@ -19,45 +19,17 @@
     <h1 class="mb-3">Maquina de Caricias</h1>
     <div class="card mb-4">
       <div class="card-body">
-        <h2 class="card-title">Last Command Sent:</h2>
-        <h3 id="lastKey" class="text-monospace">None</h3>
-        <div class="mb-3">
-          <label for="speed" class="form-label">Motor Speed</label>
-          <input type="number" id="speed" class="form-control" value="1000">
-        </div>
-        <div class="row">
-          <div class="col-sm-4 mb-3">
-            <h3>Motor Punta</h3>
-            <button id="motorXUp" class="btn btn-outline-primary btn-toggle">Up</button>
-            <button id="motorXDown" class="btn btn-outline-primary btn-toggle">Down</button>
-          </div>
-          <div class="col-sm-4 mb-3">
-            <h3>Motor Base 1 (Ventana)</h3>
-            <button id="motorYUp" class="btn btn-outline-secondary btn-toggle">Up</button>
-            <button id="motorYDown" class="btn btn-outline-secondary btn-toggle">Down</button>
-          </div>
-          <div class="col-sm-4 mb-3">
-            <h3>Motor Base 2</h3>
-            <button id="motorZUp" class="btn btn-outline-success btn-toggle">Up</button>
-            <button id="motorZDown" class="btn btn-outline-success btn-toggle">Down</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="card mb-4">
-      <div class="card-body">
-        <h2 class="card-title">Detected Marker Overlay</h2>
         <div id="imageContainer" class="position-relative text-center mb-3">
           <img id="overlayImage" src="/overlay.jpg" alt="Overlayed Marker">
           <canvas id="maskCanvas" class="position-absolute top-0 start-0"></canvas>
         </div>
-        <button id="saveMaskBtn" class="btn btn-primary">Save Mask</button>
-        <button id="clearMaskBtn" class="btn btn-secondary ms-2">Clear Mask</button>
+        <button id="saveMaskBtn" class="btn btn-primary">Guardar recorrido</button>
+        <button id="clearMaskBtn" class="btn btn-secondary ms-2">Borrar</button>
       </div>
     </div>
     <div class="card mb-4">
       <div class="card-body">
-        <h2 class="card-title">Update Configuration</h2>
+        <h2 class="card-title">Configuración</h2>
         <form id="configForm">
           <div class="row">
 
@@ -174,8 +146,35 @@
               </fieldset>
             </div>
           </div>
-          <button type="button" id="updateConfigBtn" class="btn btn-success">Update Configuration</button>
+          <button type="button" id="updateConfigBtn" class="btn btn-success">Actualizar</button>
         </form>
+      </div>
+    </div>
+    <div class="card mb-4">
+      <div class="card-body">
+        <h2 class="card-title">Last Command Sent:</h2>
+        <h3 id="lastKey" class="text-monospace">None</h3>
+        <div class="mb-3">
+          <label for="speed" class="form-label">Velocidad</label>
+          <input type="number" id="speed" class="form-control" value="1000">
+        </div>
+        <div class="row">
+          <div class="col-sm-4 mb-3">
+            <h3>Motor Punta</h3>
+            <button id="motorXUp" class="btn btn-outline-primary btn-toggle">Up</button>
+            <button id="motorXDown" class="btn btn-outline-primary btn-toggle">Down</button>
+          </div>
+          <div class="col-sm-4 mb-3">
+            <h3>Motor Base 1 (Ventana)</h3>
+            <button id="motorYUp" class="btn btn-outline-secondary btn-toggle">Up</button>
+            <button id="motorYDown" class="btn btn-outline-secondary btn-toggle">Down</button>
+          </div>
+          <div class="col-sm-4 mb-3">
+            <h3>Motor Base 2</h3>
+            <button id="motorZUp" class="btn btn-outline-success btn-toggle">Up</button>
+            <button id="motorZDown" class="btn btn-outline-success btn-toggle">Down</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
