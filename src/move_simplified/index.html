@@ -72,26 +72,80 @@
         <h2 class="card-title">Update Configuration</h2>
         <form id="configForm">
           <div class="row">
+
+            <!-- HIGH_HEIGHT -->
             <div class="col-md-6 mb-3">
               <label for="HIGH_HEIGHT" class="form-label">HIGH_HEIGHT</label>
-              <input type="number" id="HIGH_HEIGHT" class="form-control">
+              <input
+                type="range"
+                id="HIGH_HEIGHT"
+                class="form-range"
+                min="100"
+                max="250"
+              >
             </div>
+
+            <!-- LOW_HEIGHT -->
             <div class="col-md-6 mb-3">
               <label for="LOW_HEIGHT" class="form-label">LOW_HEIGHT</label>
-              <input type="number" id="LOW_HEIGHT" class="form-control">
+              <input
+                type="range"
+                id="LOW_HEIGHT"
+                class="form-range"
+                min="100"
+                max="250"
+              >
             </div>
-            <div class="col-md-6 mb-3">
-              <label for="DEFAULT_MOTOR_SPEED" class="form-label">DEFAULT_MOTOR_SPEED</label>
-              <input type="number" id="DEFAULT_MOTOR_SPEED" class="form-control">
-            </div>
+
+            <!-- AREA_TOLERANCE -->
             <div class="col-md-6 mb-3">
               <label for="AREA_TOLERANCE" class="form-label">AREA_TOLERANCE</label>
-              <input type="number" id="AREA_TOLERANCE" class="form-control">
+              <input
+                type="range"
+                id="AREA_TOLERANCE"
+                class="form-range"
+                min="1"
+                max="1000"
+              >
             </div>
+
+            <!-- POS_TOLERANCE -->
             <div class="col-md-6 mb-3">
               <label for="POS_TOLERANCE" class="form-label">POS_TOLERANCE</label>
-              <input type="number" id="POS_TOLERANCE" class="form-control">
+              <input
+                type="range"
+                id="POS_TOLERANCE"
+                class="form-range"
+                min="1"
+                max="500"
+              >
             </div>
+
+
+            <!-- DEFAULT_MOTOR_SPEED -->
+            <div class="col-md-6 mb-3">
+              <label for="DEFAULT_MOTOR_SPEED" class="form-label">DEFAULT_MOTOR_SPEED</label>
+              <input
+                type="range"
+                id="DEFAULT_MOTOR_SPEED"
+                class="form-range"
+                min="10"
+                max="3000"
+              >
+            </div>
+
+            <!-- Step Size -->
+            <div class="col-md-6 mb-3">
+              <label for="stepSize" class="form-label">STEP_SIZE</label>
+              <input
+                type="range"
+                id="stepSize"
+                class="form-range"
+                min="1"
+                max="30"
+              >
+            </div>
+
             <div class="col-md-6 mb-3">
               <label for="HIBERNATION_HEIGHT" class="form-label">HIBERNATION_HEIGHT</label>
               <input type="number" id="HIBERNATION_HEIGHT" class="form-control" value="5000">
@@ -100,10 +154,7 @@
               <label for="MOVEMENT_FACTOR" class="form-label">MOVEMENT_FACTOR</label>
               <input type="number" step="0.1" id="MOVEMENT_FACTOR" class="form-control" value="0.6">
             </div>
-            <div class="col-md-6 mb-3">
-              <label for="stepSize" class="form-label">Step Size</label>
-              <input type="number" id="stepSize" class="form-control">
-            </div>
+
             <div class="col-md-6 mb-3">
               <fieldset class="mb-3">
                 <legend class="col-form-label">Recorrido</legend>
