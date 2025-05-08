@@ -214,13 +214,23 @@
           })
           .then(cfg => {
             // these match exactly the keys in your config.json
+
+            ["HIGH_HEIGHT","LOW_HEIGHT","AREA_TOLERANCE","POS_TOLERANCE","DEFAULT_MOTOR_SPEED","STEP_SIZE"]
+            .forEach(key => {
+              if (cfg[key] != null) {
+                const slider = document.getElementById(key);
+                const display = document.getElementById(key + "Value");
+
+                // set the slider…
+                slider.value = cfg[key];
+                // …and update its displayed number
+                display.textContent = cfg[key];
+              }
+            });
+
+
             const keys = [
               "HIBERNATION_HEIGHT",
-              "HIGH_HEIGHT",
-              "LOW_HEIGHT",
-              "DEFAULT_MOTOR_SPEED",
-              "AREA_TOLERANCE",
-              "POS_TOLERANCE",
               "MOVEMENT_FACTOR"
             ];
             keys.forEach(k => {
@@ -228,9 +238,7 @@
                 document.getElementById(k).value = cfg[k];
               }
             });
-            if (cfg.STEP_SIZE !== undefined) {
-              document.getElementById("STEP_SIZE").value = cfg.STEP_SIZE;
-            }
+
             if (cfg.RECORRIDO) {
               document.querySelector(`input[name="recorrido"][value="${cfg.RECORRIDO}"]`).checked = true;
             }
