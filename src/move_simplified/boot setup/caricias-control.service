@@ -1,12 +1,12 @@
 [Unit]
-Description=Caricias Move Service (FastAPI)
+Description=Caricias Control Service
 After=network.target
 
 [Service]
 User=mathigatti
 WorkingDirectory=/home/mathigatti/maquina-de-caricias/src/move_simplified
 Environment="PATH=/home/mathigatti/caricias/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-ExecStart=/home/mathigatti/caricias/bin/uvicorn move:app --host 0.0.0.0 --port 8000
+ExecStart=/bin/bash -c "source /home/mathigatti/caricias/bin/activate; cd /home/mathigatti/maquina-de-caricias/src/move_simplified; python control.py"
 Restart=always
 RestartSec=5
 

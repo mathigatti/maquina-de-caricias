@@ -42,7 +42,7 @@ MOTOR_RIGHT_POS = np.array([0, 0, 0], dtype=float)                          # e.
 # Global variable to store last movement command (for tip, left, right)
 moves_summatory = np.array([0.0, 0.0, 0.0], dtype=float)
 
-REST_POSITION_CM = np.array([40, HEIGHT_TOTAL/2, 136], dtype=float)
+REST_POSITION_CM = np.array([77, HEIGHT_TOTAL/2, 132], dtype=float)
 REST_POSITION_PX = (400, 360) # And AREA = 2500
 
 # --- Utility functions for vector operations ---
