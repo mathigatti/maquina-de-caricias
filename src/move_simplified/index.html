@@ -75,7 +75,7 @@
 
             <!-- HIGH_HEIGHT -->
             <div class="col-md-6 mb-3">
-              <label for="HIGH_HEIGHT" class="form-label">HIGH_HEIGHT</label>
+              <label for="HIGH_HEIGHT" class="form-label">HIGH_HEIGHT<br><span id="HIGH_HEIGHTValue"></span></label>
               <input
                 type="range"
                 id="HIGH_HEIGHT"
@@ -87,7 +87,7 @@
 
             <!-- LOW_HEIGHT -->
             <div class="col-md-6 mb-3">
-              <label for="LOW_HEIGHT" class="form-label">LOW_HEIGHT</label>
+              <label for="LOW_HEIGHT" class="form-label">LOW_HEIGHT<br><span id="LOW_HEIGHTValue"></span></label>
               <input
                 type="range"
                 id="LOW_HEIGHT"
@@ -99,7 +99,7 @@
 
             <!-- AREA_TOLERANCE -->
             <div class="col-md-6 mb-3">
-              <label for="AREA_TOLERANCE" class="form-label">AREA_TOLERANCE</label>
+              <label for="AREA_TOLERANCE" class="form-label">AREA_TOLERANCE<br><span id="AREA_TOLERANCEValue"></span></label>
               <input
                 type="range"
                 id="AREA_TOLERANCE"
@@ -111,7 +111,7 @@
 
             <!-- POS_TOLERANCE -->
             <div class="col-md-6 mb-3">
-              <label for="POS_TOLERANCE" class="form-label">POS_TOLERANCE</label>
+              <label for="POS_TOLERANCE" class="form-label">POS_TOLERANCE<br><span id="POS_TOLERANCEValue"></span></label>
               <input
                 type="range"
                 id="POS_TOLERANCE"
@@ -124,7 +124,7 @@
 
             <!-- DEFAULT_MOTOR_SPEED -->
             <div class="col-md-6 mb-3">
-              <label for="DEFAULT_MOTOR_SPEED" class="form-label">DEFAULT_MOTOR_SPEED</label>
+              <label for="DEFAULT_MOTOR_SPEED" class="form-label">DEFAULT_MOTOR_SPEED<br><span id="DEFAULT_MOTOR_SPEEDValue"></span></label>
               <input
                 type="range"
                 id="DEFAULT_MOTOR_SPEED"
@@ -136,7 +136,7 @@
 
             <!-- Step Size -->
             <div class="col-md-6 mb-3">
-              <label for="stepSize" class="form-label">STEP_SIZE</label>
+              <label for="stepSize" class="form-label">STEP_SIZE<br><span id="STEP_SIZEValue"></span></label>
               <input
                 type="range"
                 id="stepSize"
@@ -279,6 +279,17 @@
       // finally, load on start
       loadConfig();
 
+      function bindSlider(id) {
+        const slider = document.getElementById(id);
+        const display = document.getElementById(id + "Value");
+        function update() { display.textContent = slider.value; }
+        slider.addEventListener("input", update);
+        update();  // initialize display
+      }
+
+      // call for each of your sliders
+      ["speed", "HIGH_HEIGHT", "LOW_HEIGHT", "AREA_TOLERANCE", "POS_TOLERANCE", "stepSize"]
+        .forEach(bindSlider);
 
       setInterval(() => {
         const img = document.getElementById("overlayImage");
