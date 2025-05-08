@@ -45,7 +45,7 @@
             <button id="motorXDown" class="btn btn-outline-primary btn-toggle">Down</button>
           </div>
           <div class="col-sm-4 mb-3">
-            <h3>Motor Base 1</h3>
+            <h3>Motor Base 1 (El que da a la ventana)</h3>
             <button id="motorYUp" class="btn btn-outline-secondary btn-toggle">Up</button>
             <button id="motorYDown" class="btn btn-outline-secondary btn-toggle">Down</button>
           </div>
@@ -65,6 +65,7 @@
           <canvas id="maskCanvas" class="position-absolute top-0 start-0"></canvas>
         </div>
         <button id="saveMaskBtn" class="btn btn-primary">Save Mask</button>
+        <button id="clearMaskBtn" class="btn btn-secondary ms-2">Clear Mask</button>
       </div>
     </div>
     <div class="card mb-4">
@@ -72,95 +73,48 @@
         <h2 class="card-title">Update Configuration</h2>
         <form id="configForm">
           <div class="row">
-
             <!-- HIGH_HEIGHT -->
             <div class="col-md-6 mb-3">
               <label for="HIGH_HEIGHT" class="form-label">HIGH_HEIGHT<br><span id="HIGH_HEIGHTValue"></span></label>
-              <input
-                type="range"
-                id="HIGH_HEIGHT"
-                class="form-range"
-                min="100"
-                max="250"
-              >
+              <input type="range" id="HIGH_HEIGHT" class="form-range" min="100" max="250">
             </div>
-
             <!-- LOW_HEIGHT -->
             <div class="col-md-6 mb-3">
               <label for="LOW_HEIGHT" class="form-label">LOW_HEIGHT<br><span id="LOW_HEIGHTValue"></span></label>
-              <input
-                type="range"
-                id="LOW_HEIGHT"
-                class="form-range"
-                min="100"
-                max="250"
-              >
+              <input type="range" id="LOW_HEIGHT" class="form-range" min="100" max="250">
             </div>
-
             <!-- AREA_TOLERANCE -->
             <div class="col-md-6 mb-3">
               <label for="AREA_TOLERANCE" class="form-label">AREA_TOLERANCE<br><span id="AREA_TOLERANCEValue"></span></label>
-              <input
-                type="range"
-                id="AREA_TOLERANCE"
-                class="form-range"
-                min="1"
-                max="1000"
-              >
+              <input type="range" id="AREA_TOLERANCE" class="form-range" min="1" max="1000">
             </div>
-
             <!-- POS_TOLERANCE -->
             <div class="col-md-6 mb-3">
               <label for="POS_TOLERANCE" class="form-label">POS_TOLERANCE<br><span id="POS_TOLERANCEValue"></span></label>
-              <input
-                type="range"
-                id="POS_TOLERANCE"
-                class="form-range"
-                min="1"
-                max="500"
-              >
+              <input type="range" id="POS_TOLERANCE" class="form-range" min="1" max="500">
             </div>
-
-
             <!-- DEFAULT_MOTOR_SPEED -->
             <div class="col-md-6 mb-3">
               <label for="DEFAULT_MOTOR_SPEED" class="form-label">DEFAULT_MOTOR_SPEED<br><span id="DEFAULT_MOTOR_SPEEDValue"></span></label>
-              <input
-                type="range"
-                id="DEFAULT_MOTOR_SPEED"
-                class="form-range"
-                min="10"
-                max="3000"
-              >
+              <input type="range" id="DEFAULT_MOTOR_SPEED" class="form-range" min="10" max="3000">
             </div>
-
-            <!-- Step Size -->
+            <!-- STEP_SIZE -->
             <div class="col-md-6 mb-3">
               <label for="STEP_SIZE" class="form-label">STEP_SIZE<br><span id="STEP_SIZEValue"></span></label>
-              <input
-                type="range"
-                id="STEP_SIZE"
-                class="form-range"
-                min="1"
-                max="30"
-              >
+              <input type="range" id="STEP_SIZE" class="form-range" min="1" max="30">
             </div>
-
             <div class="col-md-6 mb-3">
               <label for="HIBERNATION_HEIGHT" class="form-label">HIBERNATION_HEIGHT</label>
               <input type="number" id="HIBERNATION_HEIGHT" class="form-control" value="5000">
             </div>
-
             <div class="col-md-6 mb-3">
               <label for="MOVEMENT_FACTOR" class="form-label">MOVEMENT_FACTOR</label>
               <input type="number" step="0.1" id="MOVEMENT_FACTOR" class="form-control" value="0.6">
             </div>
-
             <div class="col-md-6 mb-3">
               <label for="PAUSE_IN_SECONDS" class="form-label">PAUSE_IN_SECONDS</label>
               <input type="number" step="0.1" id="PAUSE_IN_SECONDS" class="form-control" value="0.2">
             </div>
-
             <div class="col-md-6 mb-3">
               <fieldset class="mb-3">
                 <legend class="col-form-label">Recorrido</legend>
@@ -186,166 +140,4 @@
               </fieldset>
             </div>
           </div>
-          <button type="button" id="updateConfigBtn" class="btn btn-success">Update Configuration</button>
-        </form>
-      </div>
-    </div>
-  </div>
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Original functionality scripts -->
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      function sendCommand(tip, left, right) {
-        const speed = document.getElementById("speed").value || "0";
-        const commandStr = `(${tip},${left},${right},${speed})`;
-        document.getElementById("lastKey").textContent = commandStr;
-        fetch(`/command?cmd=${encodeURIComponent(commandStr)}`, { method: "POST" })
-          .catch(error => console.error("Error sending command:", error));
-      }
-      document.getElementById("motorXUp").addEventListener("click", () => sendCommand(-10,0,0));
-      document.getElementById("motorXDown").addEventListener("click", () => sendCommand(10,0,0));
-      document.getElementById("motorYUp").addEventListener("click", () => sendCommand(0,-10,0));
-      document.getElementById("motorYDown").addEventListener("click", () => sendCommand(0,10,0));
-      document.getElementById("motorZUp").addEventListener("click", () => sendCommand(0,0,-10));
-      document.getElementById("motorZDown").addEventListener("click", () => sendCommand(0,0,10));
-
-
-      // 1) Load config.json via your GET /config endpoint
-      function loadConfig() {
-        fetch("/config")
-          .then(res => {
-            if (!res.ok) throw new Error("Failed to load configuration");
-            return res.json();
-          })
-          .then(cfg => {
-            // these match exactly the keys in your config.json
-
-            ["HIGH_HEIGHT","LOW_HEIGHT","AREA_TOLERANCE","POS_TOLERANCE","DEFAULT_MOTOR_SPEED","STEP_SIZE"]
-            .forEach(key => {
-              if (cfg[key] != null) {
-                const slider = document.getElementById(key);
-                const display = document.getElementById(key + "Value");
-
-                // set the slider…
-                slider.value = cfg[key];
-                // …and update its displayed number
-                display.textContent = cfg[key];
-              }
-            });
-
-
-            const keys = [
-              "HIBERNATION_HEIGHT",
-              "PAUSE_IN_SECONDS",
-              "MOVEMENT_FACTOR"
-            ];
-            keys.forEach(k => {
-              if (cfg[k] !== undefined) {
-                document.getElementById(k).value = cfg[k];
-              }
-            });
-
-            if (cfg.RECORRIDO) {
-              document.querySelector(`input[name="recorrido"][value="${cfg.RECORRIDO}"]`).checked = true;
-            }
-            if (cfg.PASO) {
-              document.querySelector(`input[name="paso"][value="${cfg.PASO}"]`).checked = true;
-            }
-          })
-          .catch(err => console.error(err));
-      }
-
-      // 2) Send back only those same keys on PUT /config
-      function updateConfig() {
-        const newCfg = {
-          HIBERNATION_HEIGHT: parseInt(document.getElementById("HIBERNATION_HEIGHT").value, 10),
-          HIGH_HEIGHT:         parseInt(document.getElementById("HIGH_HEIGHT").value, 10),
-          LOW_HEIGHT:          parseInt(document.getElementById("LOW_HEIGHT").value, 10),
-          DEFAULT_MOTOR_SPEED: parseInt(document.getElementById("DEFAULT_MOTOR_SPEED").value, 10),
-          AREA_TOLERANCE:      parseInt(document.getElementById("AREA_TOLERANCE").value, 10),
-          POS_TOLERANCE:       parseInt(document.getElementById("POS_TOLERANCE").value, 10),
-          MOVEMENT_FACTOR:     parseFloat(document.getElementById("MOVEMENT_FACTOR").value),
-          PAUSE_IN_SECONDS:     parseFloat(document.getElementById("PAUSE_IN_SECONDS").value),
-          STEP_SIZE:           parseInt(document.getElementById("STEP_SIZE").value, 10),
-          RECORRIDO:           document.querySelector('input[name="recorrido"]:checked').value,
-          PASO:                document.querySelector('input[name="paso"]:checked').value
-        };
-
-        fetch("/config", {
-          method:  "PUT",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify(newCfg)
-        })
-        .then(res => {
-          if (!res.ok) throw new Error("Failed to update configuration");
-          return res.json();
-        })
-        .then(() => alert("Configuration updated successfully"))
-        .catch(err => {
-          console.error(err);
-          alert("Error updating configuration");
-        });
-      }
-
-      // wire up
-      document.getElementById("updateConfigBtn")
-              .addEventListener("click", updateConfig);
-
-      // finally, load on start
-      loadConfig();
-
-      function bindSlider(id) {
-        const slider = document.getElementById(id);
-        const display = document.getElementById(id + "Value");
-        function update() { display.textContent = slider.value; }
-        slider.addEventListener("input", update);
-        update();  // initialize display
-      }
-
-      // call for each of your sliders
-      ["DEFAULT_MOTOR_SPEED", "HIGH_HEIGHT", "LOW_HEIGHT", "AREA_TOLERANCE", "POS_TOLERANCE", "STEP_SIZE"]
-        .forEach(bindSlider);
-
-      setInterval(() => {
-        const img = document.getElementById("overlayImage");
-        if(img) img.src = `/overlay.jpg?t=${new Date().getTime()}`;
-      }, 2000);
-      const overlayImage = document.getElementById("overlayImage");
-      const maskCanvas = document.getElementById("maskCanvas");
-      const ctx = maskCanvas.getContext("2d");
-      let drawing=false,lastX=0,lastY=0,canvasInitialized=false;
-      overlayImage.onload = function() {
-        if(!canvasInitialized) {
-          maskCanvas.width=overlayImage.width;
-          maskCanvas.height=overlayImage.height;
-          canvasInitialized=true;
-          ctx.lineWidth=35;ctx.strokeStyle="black";ctx.lineCap="round";
-        }
-      };
-      function startDrawing(e){drawing=true;const rect=maskCanvas.getBoundingClientRect();lastX=e.clientX-rect.left;lastY=e.clientY-rect.top;}
-      function draw(e){if(!drawing)return;const rect=maskCanvas.getBoundingClientRect();const x=e.clientX-rect.left,y=e.clientY-rect.top;ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(x,y);ctx.stroke();lastX=x;lastY=y;}
-      function stop(){drawing=false;}
-      maskCanvas.addEventListener("mousedown",startDrawing);
-      maskCanvas.addEventListener("mousemove",draw);
-      maskCanvas.addEventListener("mouseup",stop);
-      maskCanvas.addEventListener("mouseout",stop);
-      maskCanvas.addEventListener("touchstart",e=>{e.preventDefault();startDrawing({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY})},false);
-      maskCanvas.addEventListener("touchmove",e=>{e.preventDefault();draw({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY})},false);
-      maskCanvas.addEventListener("touchend",e=>{e.preventDefault();stop()},false);
-      document.getElementById("saveMaskBtn").addEventListener("click",function(){
-        const off=document.createElement("canvas");off.width=maskCanvas.width;off.height=maskCanvas.height;
-        const offCtx=off.getContext("2d");offCtx.fillStyle="white";offCtx.fillRect(0,0,off.width,off.height);
-        offCtx.drawImage(maskCanvas,0,0);
-        off.toBlob(function(blob){
-          const form=new FormData();form.append("file",blob,"mask.jpg");
-          fetch("/mask",{method:"POST",body:form})
-            .then(r=>{if(!r.ok)throw new Error("Failed to save mask");return r.json();})
-            .then(()=>alert("Mask saved successfully"))
-            .catch(e=>{console.error(e);alert("Error saving mask");});
-        },"image/jpeg");
-      });
-    });
-  </script>
-</body>
-</html>
+          <button type="button" id="updateConfigBtn
