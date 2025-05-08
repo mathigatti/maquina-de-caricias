@@ -503,4 +503,4 @@ if __name__ == "__main__":
                         for _ in range(5):
                             cap.grab()
 
-                        sleep(0.02)
+                        sleep(config.get("PAUSE_IN_SECONDS"))

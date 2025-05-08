@@ -150,9 +150,15 @@
               <label for="HIBERNATION_HEIGHT" class="form-label">HIBERNATION_HEIGHT</label>
               <input type="number" id="HIBERNATION_HEIGHT" class="form-control" value="5000">
             </div>
+
             <div class="col-md-6 mb-3">
               <label for="MOVEMENT_FACTOR" class="form-label">MOVEMENT_FACTOR</label>
               <input type="number" step="0.1" id="MOVEMENT_FACTOR" class="form-control" value="0.6">
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label for="PAUSE_IN_SECONDS" class="form-label">PAUSE_IN_SECONDS</label>
+              <input type="number" step="0.1" id="PAUSE_IN_SECONDS" class="form-control" value="0.2">
             </div>
 
             <div class="col-md-6 mb-3">
@@ -231,6 +237,7 @@
 
             const keys = [
               "HIBERNATION_HEIGHT",
+              "PAUSE_IN_SECONDS",
               "MOVEMENT_FACTOR"
             ];
             keys.forEach(k => {
@@ -259,6 +266,7 @@
           AREA_TOLERANCE:      parseInt(document.getElementById("AREA_TOLERANCE").value, 10),
           POS_TOLERANCE:       parseInt(document.getElementById("POS_TOLERANCE").value, 10),
           MOVEMENT_FACTOR:     parseFloat(document.getElementById("MOVEMENT_FACTOR").value),
+          PAUSE_IN_SECONDS:     parseFloat(document.getElementById("PAUSE_IN_SECONDS").value),
           STEP_SIZE:           parseInt(document.getElementById("stepSize").value, 10),
           RECORRIDO:           document.querySelector('input[name="recorrido"]:checked').value,
           PASO:                document.querySelector('input[name="paso"]:checked').value
