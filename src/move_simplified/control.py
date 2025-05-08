@@ -289,40 +289,16 @@ def check_hibernation_mode(cap, selected_dict, debug=True):
         sleep(0.1)
     return hibernation_count >= int(0.5 * retries)
 
-def pixel_to_real(pixel):
+def pixel_to_cm(x_px, y_px):
+    x_cm = x_px * WIDTH_TOTAL  / WIDTH_TOTAL_PX
+    y_cm = y_px * HEIGHT_TOTAL / HEIGHT_TOTAL_PX
+    return x_cm, y_cm
+
+def preprocess_image(image: Image.Image) -> Image.Image:
     """
-    Converts pixel coordinates from an image to real-world coordinates in cm.
-    
-    Parameters:
-        pixel (tuple): A tuple (px, py) with the pixel coordinates.
-        height_total (float): The total height in cm in the real-world space.
-        
-    Returns:
-        tuple: Real-world coordinates (x, y) in cm.
-        
-    Known reference:
-        - Pixel (400, 360) maps to (40, height_total/2).
-        - Scale: 1 pixel equals 0.23 cm.
+    Crop the image to keep only x in [250, 1250).
     """
-    # Scale factor in cm/pixel
-    scale = 0.23
-
-    # Unpack the pixel coordinates
-    px, py, z = pixel
-
-    # Calculate displacements from the reference pixel
-    dx_pixels = px - 400
-    dy_pixels = py - 360
-
-    # Convert displacement from pixels to centimeters
-    dx_cm = dx_pixels * scale
-    dy_cm = dy_pixels * scale
-
-    # Calculate the real-world coordinates using the reference point
-    x_real = max(20, 40 + dx_cm)
-    y_real = max(20, (HEIGHT_TOTAL / 2) + dy_cm)
-
-    return (x_real, y_real, z)
+    return image.crop((250, 0, 1250, image.height))
 
 def load_clusters(mask_path: str, step_size: int = 10) -> List[List[Tuple[int, int]]]:
     """
@@ -334,8 +310,10 @@ def load_clusters(mask_path: str, step_size: int = 10) -> List[List[Tuple[int, i
     clusters : List of clusters, each a list of (x, y) pixel coordinates.
     """
     # Load and threshold mask
-    mask = Image.open(mask_path).convert("L")
-    mask_np = np.array(mask)
+    image = Image.open(mask_path).convert("L")
+    cropped = preprocess_image(image)
+    mask_np = np.array(cropped)
+
     binary = (mask_np == 0).astype(np.uint8)
 
     # Connected components
@@ -476,13 +454,16 @@ if __name__ == "__main__":
             for cluster_id in range(len(clusters)):
                 for _ in range(config.get("STEP_SIZE", 10)):
                     x, y = get_next_movement(clusters, cluster_id, config.get("RECORRIDO", "azar"))
-                    
+                    print("px coords", x, y)
+                    x, y = pixel_to_cm(x, y)
+                    print("cm coords", x, y)
                     if config.get("PASO", "continuo") == "subiendo_bajando":
-                        target_positions = [pixel_to_real((x, y, config.get("HIGH_HEIGHT"))), pixel_to_real((x, y, config.get("LOW_HEIGHT"))), pixel_to_real((x, y, config.get("HIGH_HEIGHT")))]
+                        target_positions = [(x, y, config.get("HIGH_HEIGHT")), (x, y, config.get("LOW_HEIGHT")), (x, y, config.get("HIGH_HEIGHT"))]
                     else:
-                        target_positions = [pixel_to_real((x, y, config.get("LOW_HEIGHT")))]
+                        target_positions = [(x, y, config.get("LOW_HEIGHT"))]
                     
                     for target_position in target_positions:
+                        print("Current target (cm):", target_position)
                         ret, frame = cap.read()
                         if not ret:
                             continue
@@ -494,7 +475,6 @@ if __name__ == "__main__":
                             centering = True
                             break
                         
-                        print("Current target (cm):", target_position)
                         move_coord = deterministic_move(target_position)
                         print("Deterministic move command:", move_coord)            
                         send_coord(move_coord)
